@@ -67,7 +67,8 @@ Build up from the smallest thing that works.
 3. A list of notes and search.
 4. Layout adjustments for macOS.
 5. Reflection with a language model.
-6. Distribution through TestFlight, then release on the App Store.
+6. The finished sign-in experience and app icon. GitHub's device authorization page shows neither the app's logo nor its description, so the app's own screens carry the explanation of what that page will ask for. The icon moves to layered artwork so that the system can render its light, dark, and tinted appearances.
+7. Distribution through TestFlight, then release on the App Store.
 
 ## Open questions
 
