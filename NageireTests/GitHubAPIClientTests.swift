@@ -114,4 +114,68 @@ struct GitHubAPIClientTests {
         }
         #expect(store.tokens != nil)
     }
+
+    @Test func creatingAFilePutsTheBase64ContentAndMessageAtThePath() async throws {
+        let (client, transport) = client { _ in (201, #"{"content":{}}"#) }
+
+        try await client.createFile(
+            at: "notes/2026/10/2026-10-03T135812Z-a1b2.md",
+            in: Repository(owner: "octocat", name: "notes"),
+            content: Data("Hello\n".utf8),
+            message: "Add note"
+        )
+
+        let request = try #require(transport.requests.first)
+        #expect(request.httpMethod == "PUT")
+        #expect(request.url?.absoluteString == "https://api.github.com/repos/octocat/notes/contents/notes/2026/10/2026-10-03T135812Z-a1b2.md")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer access-old")
+        let body = try JSONDecoder().decode([String: String].self, from: try #require(request.httpBody))
+        #expect(body == ["message": "Add note", "content": "SGVsbG8K"])
+    }
+
+    @Test(arguments: [404, 403, 409])
+    func creatingAFileReportsTheStatusGitHubRefusedItWith(status: Int) async {
+        let (client, _) = client { _ in (status, #"{"message":"refused"}"#) }
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(status)) {
+            try await client.createFile(at: "notes/a.md", in: Repository(owner: "octocat", name: "notes"), content: Data(), message: "Add note")
+        }
+    }
+
+    private func clientAnswering422(existingFile: (Int, String)) -> GitHubAPIClient {
+        client { request in
+            request.httpMethod == "PUT" ? (422, #"{"message":"Invalid request.\n\n\"sha\" wasn't supplied."}"#) : existingFile
+        }.0
+    }
+
+    @Test func creatingAFileSucceedsWhenThePathAlreadyHoldsTheSameContent() async throws {
+        // GitHub wraps the base64 content of a file in lines.
+        let client = clientAnswering422(existingFile: (200, #"{"content":"SGVs\nbG8K\n","encoding":"base64"}"#))
+
+        try await client.createFile(at: "notes/a.md", in: Repository(owner: "octocat", name: "notes"), content: Data("Hello\n".utf8), message: "Add note")
+    }
+
+    @Test func creatingAFileThrowsFileAlreadyExistsWhenThePathHoldsDifferentContent() async {
+        let client = clientAnswering422(existingFile: (200, #"{"content":"T3RoZXIK\n","encoding":"base64"}"#))
+
+        await #expect(throws: GitHubAPIError.fileAlreadyExists) {
+            try await client.createFile(at: "notes/a.md", in: Repository(owner: "octocat", name: "notes"), content: Data("Hello\n".utf8), message: "Add note")
+        }
+    }
+
+    @Test func creatingAFileReportsThe422WhenNoFileIsAtThePath() async {
+        let client = clientAnswering422(existingFile: (404, #"{"message":"Not Found"}"#))
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(422)) {
+            try await client.createFile(at: "notes/a.md", in: Repository(owner: "octocat", name: "notes"), content: Data("Hello\n".utf8), message: "Add note")
+        }
+    }
+
+    @Test func creatingAFileReportsTheFailureOfTheReadBackWhenItIsNotAMissingFile() async {
+        let client = clientAnswering422(existingFile: (503, "{}"))
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(503)) {
+            try await client.createFile(at: "notes/a.md", in: Repository(owner: "octocat", name: "notes"), content: Data("Hello\n".utf8), message: "Add note")
+        }
+    }
 }

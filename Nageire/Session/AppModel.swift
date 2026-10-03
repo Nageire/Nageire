@@ -6,6 +6,7 @@ final class AppModel {
     let configuration: GitHubAppConfiguration
     let oauth: GitHubOAuth
     let api: GitHubAPI
+    let outbox: NoteOutbox
     private let session: GitHubSession
     private let defaults: UserDefaults
 
@@ -13,20 +14,20 @@ final class AppModel {
     private(set) var accountLogin: String?
     private(set) var repository: Repository?
 
-    init(configuration: GitHubAppConfiguration, oauth: GitHubOAuth, api: GitHubAPI, session: GitHubSession, defaults: UserDefaults) {
+    init(configuration: GitHubAppConfiguration, oauth: GitHubOAuth, api: GitHubAPI, outbox: NoteOutbox, session: GitHubSession, defaults: UserDefaults) {
         self.configuration = configuration
         self.oauth = oauth
         self.api = api
+        self.outbox = outbox
         self.session = session
         self.defaults = defaults
 
         isSignedIn = session.hasTokens
         if isSignedIn {
             accountLogin = defaults.string(forKey: Keys.accountLogin)
-            // TODO: Detect a selected repository the GitHub App can no longer reach when notes are first written to it.
-            // Nothing checks at launch that the installation still covers the repository.
             if let fullName = defaults.string(forKey: Keys.repository) {
                 repository = Repository(fullName: fullName)
+                outbox.destination = repository
             }
         } else {
             // The Keychain item does not travel to a restored device while UserDefaults does,
@@ -51,16 +52,26 @@ final class AppModel {
     func select(_ repository: Repository) {
         self.repository = repository
         defaults.set(repository.fullName, forKey: Keys.repository)
+        outbox.destination = repository
+        // Notes refused by the previous repository are waiting for this one.
+        Task { await outbox.send() }
     }
 
     func signOut() {
         session.signOut()
     }
 
+    /// Saves the note on the device and starts sending it. Returns once it is saved; sending never holds up writing.
+    func saveNote(body: String) throws {
+        try outbox.add(body: body)
+        Task { await outbox.send() }
+    }
+
     private func clear() {
         isSignedIn = false
         accountLogin = nil
         repository = nil
+        outbox.destination = nil
         defaults.removeObject(forKey: Keys.accountLogin)
         defaults.removeObject(forKey: Keys.repository)
     }
@@ -77,10 +88,12 @@ extension AppModel {
         let transport = URLSessionTransport()
         let oauth = GitHubOAuthClient(clientID: configuration.clientID, transport: transport)
         let session = GitHubSession(store: KeychainTokenStore(), oauth: oauth)
+        let api = GitHubAPIClient(transport: transport, session: session)
         return AppModel(
             configuration: configuration,
             oauth: oauth,
-            api: GitHubAPIClient(transport: transport, session: session),
+            api: api,
+            outbox: NoteOutbox(store: FileNoteStore(directory: .applicationSupportDirectory.appending(path: "Notes")), api: api),
             session: session,
             defaults: .standard
         )

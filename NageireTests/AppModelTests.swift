@@ -20,6 +20,7 @@ struct AppModelTests {
             configuration: GitHubAppConfiguration(clientID: "client-id", slug: "nageire"),
             oauth: oauth,
             api: api,
+            outbox: NoteOutbox(store: InMemoryNoteStore(), api: api),
             session: GitHubSession(store: store, oauth: oauth),
             defaults: defaults
         )
@@ -84,5 +85,45 @@ struct AppModelTests {
         try relaunched.completeSignIn(with: .sample)
 
         #expect(relaunched.repository == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1))) func choosingARepositorySendsTheNotesThatWereWaitingForOne() async throws {
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        try model.outbox.add(body: "Written before a repository was chosen")
+
+        model.select(Repository(owner: "octocat", name: "notes"))
+        while model.outbox.pendingCount > 0 {
+            await Task.yield()
+        }
+
+        #expect(api.createFileAttempts.map(\.repository) == ["octocat/notes"])
+    }
+
+    @Test(.timeLimit(.minutes(1))) func savingANoteKeepsItOnTheDeviceAndSendsItToTheChosenRepository() async throws {
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+
+        try model.saveNote(body: "Hello")
+        #expect(model.outbox.pendingCount == 1)
+        while model.outbox.pendingCount > 0 {
+            await Task.yield()
+        }
+
+        #expect(api.createFileAttempts.count == 1)
+    }
+
+    @Test func notesStayOnTheDeviceUnsentAfterSigningOut() async throws {
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        model.signOut()
+
+        try model.outbox.add(body: "Hello")
+        await model.outbox.send()
+
+        #expect(model.outbox.pendingCount == 1)
+        #expect(api.createFileAttempts.isEmpty)
     }
 }
