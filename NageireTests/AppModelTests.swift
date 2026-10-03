@@ -5,6 +5,7 @@ import Testing
 @MainActor
 struct AppModelTests {
     private let store = InMemoryTokenStore()
+    private let notes = InMemoryNoteStore()
     private let api = FakeAPI()
     private let defaults: UserDefaults
 
@@ -20,7 +21,8 @@ struct AppModelTests {
             configuration: GitHubAppConfiguration(clientID: "client-id", slug: "nageire"),
             oauth: oauth,
             api: api,
-            outbox: NoteOutbox(store: InMemoryNoteStore(), api: api),
+            outbox: NoteOutbox(store: notes, api: api),
+            library: NoteLibrary(store: notes, api: api),
             session: GitHubSession(store: store, oauth: oauth),
             defaults: defaults
         )
@@ -125,5 +127,59 @@ struct AppModelTests {
 
         #expect(model.outbox.pendingCount == 1)
         #expect(api.createFileAttempts.isEmpty)
+    }
+
+    @Test func aSavedNoteIsInTheListAtOnceAsUnsentAndStaysThereOnceSent() async throws {
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await model.syncNotes()
+
+        try model.saveNote(body: "Hello")
+        #expect(model.notes().map(\.isPending) == [true])
+        await model.syncNotes()
+
+        #expect(model.notes().map(\.body) == ["Hello"])
+        #expect(model.notes().map(\.isPending) == [false])
+    }
+
+    @Test func syncingListsTheNotesTheRepositoryHolds() async throws {
+        api.remoteNotes = .success(["notes/2026/10/2026-10-03T135812Z-a1b2.md": "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\nFrom another device\n"])
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+
+        await model.syncNotes()
+
+        #expect(model.notes().map(\.body) == ["From another device"])
+    }
+
+    @Test func choosingAnotherRepositoryDropsTheNotesOfThePreviousOne() async throws {
+        api.remoteNotes = .success(["notes/2026/10/2026-10-03T135812Z-a1b2.md": "First repository\n"])
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await model.syncNotes()
+        api.remoteNotes = .failure(URLError(.notConnectedToInternet))
+
+        model.select(Repository(owner: "octocat", name: "journal"))
+
+        #expect(model.notes().isEmpty)
+    }
+
+    @Test func signingOutDropsTheFetchedNotesAndKeepsTheUnsentOnes() async throws {
+        api.remoteNotes = .success(["notes/2026/10/2026-10-03T135812Z-a1b2.md": "Fetched\n"])
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await model.syncNotes()
+        api.createFileResults = [.failure(URLError(.notConnectedToInternet))]
+        try model.outbox.add(body: "Unsent")
+        await model.outbox.send()
+
+        model.signOut()
+
+        #expect(model.notes().map(\.body) == ["Unsent"])
+        #expect(notes.files.isEmpty)
     }
 }

@@ -178,4 +178,88 @@ struct GitHubAPIClientTests {
             try await client.createFile(at: "notes/a.md", in: Repository(owner: "octocat", name: "notes"), content: Data("Hello\n".utf8), message: "Add note")
         }
     }
+
+    private let rootTree = """
+        {"sha":"r","truncated":false,"tree":[
+          {"path":"README.md","type":"blob","sha":"s0"},
+          {"path":"notes","type":"tree","sha":"n1"},
+          {"path":"photos","type":"tree","sha":"p1"}
+        ]}
+        """
+
+    @Test func noteFilesListsTheMarkdownFilesOfTheNotesDirectoryWithTheirFullPaths() async throws {
+        let rootTree = rootTree
+        let (client, transport) = client { request in
+            guard request.url!.path.hasSuffix("/git/trees/n1") else { return (200, rootTree) }
+            return (200, """
+                {"sha":"n1","truncated":false,"tree":[
+                  {"path":"2026","type":"tree","sha":"s1"},
+                  {"path":"2026/10","type":"tree","sha":"s2"},
+                  {"path":"2026/10/2026-10-03T135812Z-a1b2.md","type":"blob","sha":"s3"},
+                  {"path":"2026/10/photo.png","type":"blob","sha":"s4"},
+                  {"path":"2026/11/2026-11-01T090000Z-07de.md","type":"blob","sha":"s5"}
+                ]}
+                """)
+        }
+
+        let files = try await client.noteFiles(in: Repository(owner: "octocat", name: "notes"))
+
+        #expect(files == [
+            RemoteFile(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", sha: "s3"),
+            RemoteFile(path: "notes/2026/11/2026-11-01T090000Z-07de.md", sha: "s5"),
+        ])
+        #expect(transport.requests.map { $0.url!.absoluteString } == [
+            "https://api.github.com/repos/octocat/notes/git/trees/HEAD",
+            "https://api.github.com/repos/octocat/notes/git/trees/n1?recursive=1",
+        ])
+    }
+
+    @Test func noteFilesIsEmptyForARepositoryWithoutANotesDirectory() async throws {
+        let (client, transport) = client { _ in (200, #"{"sha":"r","truncated":false,"tree":[{"path":"README.md","type":"blob","sha":"s0"}]}"#) }
+
+        #expect(try await client.noteFiles(in: Repository(owner: "octocat", name: "notes")).isEmpty)
+        #expect(transport.requests.count == 1)
+    }
+
+    @Test func noteFilesIsEmptyForARepositoryWithoutCommits() async throws {
+        let (client, _) = client { _ in (409, #"{"message":"Git Repository is empty."}"#) }
+
+        #expect(try await client.noteFiles(in: Repository(owner: "octocat", name: "notes")).isEmpty)
+    }
+
+    @Test func noteFilesFailsForARepositoryTheAppCannotReachInsteadOfListingNothing() async {
+        let (client, _) = client { _ in (404, #"{"message":"Not Found"}"#) }
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(404)) {
+            try await client.noteFiles(in: Repository(owner: "octocat", name: "notes"))
+        }
+    }
+
+    @Test func noteFilesFailsWhenGitHubCutTheNotesListingShort() async {
+        let rootTree = rootTree
+        let (client, _) = client { request in
+            request.url!.path.hasSuffix("/git/trees/n1") ? (200, #"{"sha":"n1","truncated":true,"tree":[]}"#) : (200, rootTree)
+        }
+
+        await #expect(throws: GitHubAPIError.invalidResponse) {
+            try await client.noteFiles(in: Repository(owner: "octocat", name: "notes"))
+        }
+    }
+
+    @Test func noteFilesReportsAServerError() async {
+        let (client, _) = client { _ in (503, "{}") }
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(503)) {
+            try await client.noteFiles(in: Repository(owner: "octocat", name: "notes"))
+        }
+    }
+
+    @Test func blobReturnsTheDecodedContentOfTheFile() async throws {
+        let (client, transport) = client { _ in (200, #"{"sha":"s3","content":"SGVs\nbG8K\n","encoding":"base64"}"#) }
+
+        let data = try await client.blob("s3", in: Repository(owner: "octocat", name: "notes"))
+
+        #expect(String(decoding: data, as: UTF8.self) == "Hello\n")
+        #expect(transport.requests.first?.url?.absoluteString == "https://api.github.com/repos/octocat/notes/git/blobs/s3")
+    }
 }

@@ -81,6 +81,16 @@
         }
       }
     },
+    "Could not load notes from GitHub." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub からメモを読み込めませんでした。"
+          }
+        }
+      }
+    },
     "Could not load repositories" : {
       "localizations" : {
         "ja" : {
@@ -147,6 +157,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "メモを保存するリポジトリに Nageire の GitHub App をインストールしてから、再読み込みしてください。"
+          }
+        }
+      }
+    },
+    "New note" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しいメモ"
+          }
+        }
+      }
+    },
+    "No notes yet" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモはまだありません"
           }
         }
       }
@@ -341,12 +371,12 @@
         }
       }
     },
-    "Unsent notes: %lld" : {
+    "Unsent" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未送信のメモ: %lld 件"
+            "value" : "未送信"
           }
         }
       }
@@ -357,6 +387,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "認可を待っています…"
+          }
+        }
+      }
+    },
+    "Write a note" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモを書く"
           }
         }
       }
