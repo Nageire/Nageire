@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Only a pull request's superseded runs are cancelled. Cancelling on main would leave
+# the earlier of two quick merges without a result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: macos-26
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            destination: platform=macOS
+          - name: iOS
+            destination: platform=iOS Simulator,name=iPhone 17
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The runner has no signing certificate for the development team, so the build is
+      # signed ad hoc. Turning signing off instead (CODE_SIGNING_ALLOWED=NO) makes the
+      # Keychain tests fail on the iOS simulator.
+      - name: Run tests
+        env:
+          DESTINATION: ${{ matrix.destination }}
+        run: |
+          xcodebuild test \
+            -scheme Nageire \
+            -destination "$DESTINATION" \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM=
