@@ -7,6 +7,7 @@ final class AppModel {
     let oauth: GitHubOAuth
     let api: GitHubAPI
     let outbox: NoteOutbox
+    let library: NoteLibrary
     private let session: GitHubSession
     private let defaults: UserDefaults
 
@@ -14,11 +15,12 @@ final class AppModel {
     private(set) var accountLogin: String?
     private(set) var repository: Repository?
 
-    init(configuration: GitHubAppConfiguration, oauth: GitHubOAuth, api: GitHubAPI, outbox: NoteOutbox, session: GitHubSession, defaults: UserDefaults) {
+    init(configuration: GitHubAppConfiguration, oauth: GitHubOAuth, api: GitHubAPI, outbox: NoteOutbox, library: NoteLibrary, session: GitHubSession, defaults: UserDefaults) {
         self.configuration = configuration
         self.oauth = oauth
         self.api = api
         self.outbox = outbox
+        self.library = library
         self.session = session
         self.defaults = defaults
 
@@ -35,6 +37,12 @@ final class AppModel {
             clear()
         }
         session.onSignOut = { [weak self] in self?.clear() }
+        outbox.onSent = { [library] in library.add($0) }
+    }
+
+    /// The notes for the list, newest first: what GitHub holds and what is still waiting to be sent.
+    func notes(matching query: String = "") -> [NoteEntry] {
+        library.notes(including: outbox.pending, matching: query)
     }
 
     func completeSignIn(with grant: TokenGrant) throws {
@@ -50,11 +58,15 @@ final class AppModel {
     }
 
     func select(_ repository: Repository) {
+        if repository != self.repository {
+            // The device's copy mirrors one repository, so the previous one's notes go.
+            library.removeAll()
+        }
         self.repository = repository
         defaults.set(repository.fullName, forKey: Keys.repository)
         outbox.destination = repository
         // Notes refused by the previous repository are waiting for this one.
-        Task { await outbox.send() }
+        Task { await syncNotes() }
     }
 
     func signOut() {
@@ -67,11 +79,21 @@ final class AppModel {
         Task { await outbox.send() }
     }
 
+    /// Sends what is waiting, then brings the list in line with the repository.
+    func syncNotes() async {
+        await outbox.send()
+        if let repository {
+            await library.refresh(from: repository)
+        }
+    }
+
     private func clear() {
         isSignedIn = false
         accountLogin = nil
         repository = nil
         outbox.destination = nil
+        // Notes already on GitHub are fetched again after the next sign-in; unsent ones stay in the outbox.
+        library.removeAll()
         defaults.removeObject(forKey: Keys.accountLogin)
         defaults.removeObject(forKey: Keys.repository)
     }
@@ -89,11 +111,13 @@ extension AppModel {
         let oauth = GitHubOAuthClient(clientID: configuration.clientID, transport: transport)
         let session = GitHubSession(store: KeychainTokenStore(), oauth: oauth)
         let api = GitHubAPIClient(transport: transport, session: session)
+        let store = FileNoteStore(directory: .applicationSupportDirectory.appending(path: "Notes"))
         return AppModel(
             configuration: configuration,
             oauth: oauth,
             api: api,
-            outbox: NoteOutbox(store: FileNoteStore(directory: .applicationSupportDirectory.appending(path: "Notes")), api: api),
+            outbox: NoteOutbox(store: store, api: api),
+            library: NoteLibrary(store: store, api: api),
             session: session,
             defaults: .standard
         )

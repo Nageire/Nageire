@@ -60,7 +60,7 @@ struct NoteOutboxTests {
             ),
         ])
         #expect(outbox.pendingCount == 0)
-        #expect(store.sent.count == 2)
+        #expect(store.files.count == 2)
     }
 
     @Test(arguments: [URLError(.notConnectedToInternet) as Error, GitHubAPIError.unexpectedStatus(503), GitHubAPIError.unexpectedStatus(409), SessionError.signedOut])

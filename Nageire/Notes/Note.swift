@@ -20,8 +20,8 @@ extension Note {
     init(body: String, createdAt: Date, timeZone: TimeZone, suffix: String) {
         // UTC in the name keeps name order equal to writing order across time zones.
         // The local time of writing would be lost that way, so the front matter carries it.
-        let stamp = createdAt.formatted(Date.ISO8601FormatStyle(timeSeparator: .omitted, timeZone: .gmt))
-        let created = createdAt.formatted(Date.ISO8601FormatStyle(timeZoneSeparator: .colon, timeZone: timeZone))
+        let stamp = createdAt.formatted(Self.stampStyle)
+        let created = createdAt.formatted(Self.createdStyle(in: timeZone))
         // Blank lines around the text go, but the first line keeps its indentation:
         // in Markdown it can mark a code block or a nested list item.
         var text = body.split(separator: "\n", omittingEmptySubsequences: false)
@@ -31,6 +31,19 @@ extension Note {
             text.removeLast()
         }
         self.init(fileName: "\(stamp)-\(suffix).md", contents: "---\ncreated: \(created)\n---\n\n\(text)\n")
+    }
+
+    /// The format of the time in a file name, as in `2026-10-03T135812Z`.
+    static let stampStyle = Date.ISO8601FormatStyle(timeSeparator: .omitted, timeZone: .gmt)
+
+    /// The format of the `created` field, as in `2026-10-03T22:58:12+09:00`.
+    static func createdStyle(in timeZone: TimeZone) -> Date.ISO8601FormatStyle {
+        Date.ISO8601FormatStyle(timeZoneSeparator: .colon, timeZone: timeZone)
+    }
+
+    /// Nil for a file name that does not start with a time in the app's format.
+    static func timeOfWriting(inFileName fileName: some StringProtocol) -> Date? {
+        try? Date(String(fileName.prefix(18)), strategy: stampStyle)
     }
 
     func renamed(suffix: String) -> Note {

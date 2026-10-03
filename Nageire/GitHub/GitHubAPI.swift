@@ -16,10 +16,18 @@ extension Repository {
     }
 }
 
+struct RemoteFile: Equatable {
+    let path: String
+    /// The Git blob identifier of the content.
+    let sha: String
+}
+
 enum GitHubAPIError: Error, Equatable {
     case unexpectedStatus(Int)
     /// The path holds a file with different content.
     case fileAlreadyExists
+    /// A successful answer whose body is not what the endpoint documents.
+    case invalidResponse
 }
 
 protocol GitHubAPI {
@@ -29,6 +37,9 @@ protocol GitHubAPI {
     /// Commits a new file to the default branch. Succeeds when the path already holds the same content,
     /// and throws `fileAlreadyExists` instead of overwriting different content.
     func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws
+    /// Every Markdown file under `notes/` on the default branch. Empty for a repository without commits.
+    func noteFiles(in repository: Repository) async throws -> [RemoteFile]
+    func blob(_ sha: String, in repository: Repository) async throws -> Data
 }
 
 struct GitHubAPIClient: GitHubAPI {
@@ -74,9 +85,42 @@ struct GitHubAPIClient: GitHubAPI {
         } catch GitHubAPIError.unexpectedStatus(404) {
             throw GitHubAPIError.unexpectedStatus(status)
         }
-        guard Data(base64Encoded: existing.content, options: .ignoreUnknownCharacters) == content else {
+        guard existing.data == content else {
             throw GitHubAPIError.fileAlreadyExists
         }
+    }
+
+    func noteFiles(in repository: Repository) async throws -> [RemoteFile] {
+        let root: Tree
+        do {
+            root = try await get("/repos/\(repository.fullName)/git/trees/HEAD")
+        } catch GitHubAPIError.unexpectedStatus(409) {
+            // A repository without commits has no HEAD. A 404 is not treated the same way: it also
+            // means a repository the app can no longer reach, and an empty answer would tell the
+            // caller that every note was deleted.
+            return []
+        }
+        guard let notes = root.tree.first(where: { $0.path == "notes" && $0.type == "tree" }) else {
+            return []
+        }
+        // Only the notes directory is listed in full. GitHub cuts a recursive listing off past
+        // 100,000 entries or 7 MB, and the repository may hold far more than notes.
+        let tree: Tree = try await get("/repos/\(repository.fullName)/git/trees/\(notes.sha)?recursive=1")
+        guard !tree.truncated else {
+            // A partial listing would read as deletions.
+            throw GitHubAPIError.invalidResponse
+        }
+        return tree.tree
+            .filter { $0.type == "blob" && $0.path.hasSuffix(".md") }
+            .map { RemoteFile(path: "notes/\($0.path)", sha: $0.sha) }
+    }
+
+    func blob(_ sha: String, in repository: Repository) async throws -> Data {
+        let blob: FileContent = try await get("/repos/\(repository.fullName)/git/blobs/\(sha)")
+        guard let data = blob.data else {
+            throw GitHubAPIError.invalidResponse
+        }
+        return data
     }
 
     private func allPages<Item>(_ fetch: (Int) async throws -> (items: [Item], totalCount: Int)) async throws -> [Item] {
@@ -128,8 +172,22 @@ struct GitHubAPIClient: GitHubAPI {
         return (data, response.statusCode)
     }
 
+    private struct Tree: Decodable {
+        let tree: [Entry]
+        let truncated: Bool
+
+        struct Entry: Decodable {
+            let path: String
+            let type: String
+            let sha: String
+        }
+    }
+
     private struct FileContent: Decodable {
         let content: String
+
+        /// GitHub wraps the base64 text in lines.
+        var data: Data? { Data(base64Encoded: content, options: .ignoreUnknownCharacters) }
     }
 
     private struct User: Decodable {

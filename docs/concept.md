@@ -51,11 +51,14 @@ By principle 5 the content is already out of the developer's hands. The decision
 ## Technical decisions
 
 - A SwiftUI multiplatform app for iOS and macOS. Input happens mostly on the phone, so iOS is built out first.
-- No Git implementation on the device. Files are read and written through the GitHub REST API (Contents API). By principle 3 every note is a self-contained file, so reading and writing one file at a time covers saving and opening a note.
+- No Git implementation on the device. Notes are written through the GitHub REST API (Contents API), one request per note, and listed and read through the Git Trees and Blobs APIs. By principle 3 every note is a self-contained file, so no operation needs more than one file at a time.
 - A note is the file `notes/YYYY/MM/<timestamp>-<suffix>.md`. The timestamp is the UTC time of writing, so that name order is writing order whatever time zone each device is in, and the suffix is four random hexadecimal digits, so that two devices writing in the same second produce different names. One directory per month keeps every directory far below the 1,000 entries the Contents API lists.
 - A note starts with front matter holding one field, `created`, the time of writing with its UTC offset. The UTC file name alone would lose whether a note was written in the morning or at night.
 - A saved note is not edited by the app. Sending a note only ever creates a file, which is what keeps writes from several devices free of conflicts.
 - Notes are sent right after saving, and again when the app is opened or brought to the front. Nothing is sent while the app is closed.
+- The list shows every note in the repository, not only those written on the device. The device keeps a copy, so the list and search work offline. The copy is brought up to date when the app is opened or brought to the front: the Git Trees API lists everything under `notes/` at once, and only files that are new or changed are fetched.
+- The app opens on the list, newest note first, and writing is one tap away. Principle 4 puts writing at once before everything else; the list won that place because seeing what was last written is what most often prompts the next note. The cost is one tap, and no network wait is added to writing.
+- Search runs on the device over the text of the notes.
 - A device belongs to one person. Notes not yet sent stay on the device through a sign-out and go to the repository chosen after the next sign-in, whoever signs in.
 - Authentication uses a GitHub App with the device flow. Permission is limited to the single repository the user picks for notes, so the app can read and write nothing but the place where notes live. Tokens are stored in the Keychain.
 - User tokens expire after eight hours and are renewed with the refresh token. When renewal fails, the app returns to the sign-in screen.
@@ -77,8 +80,7 @@ Build up from the smallest thing that works.
 
 ## Open questions
 
-- How the list and search read notes across month directories. Listing one directory per month costs a request each; the Git Trees API returns the whole tree in one.
-- Whether a saved note can be edited, and how an edit from one device meets the same note on another.
+- Whether a saved note can be edited or deleted from the app, and how an edit from one device meets the same note on another. For now a note is changed on GitHub and the change shows up in the list.
 - Whether notes are also sent while the app is closed.
 - How much of the reflection feature lives inside the app. Running an external tool against the repository would also work.
 - Whether reflection results are written back to the repository as derived files.

@@ -9,7 +9,11 @@ final class NoteOutbox {
         didSet { wasRefused = false }
     }
 
-    private(set) var pendingCount = 0
+    /// The notes not yet sent, oldest first.
+    private(set) var pending: [Note] = []
+    var pendingCount: Int { pending.count }
+    /// Called with each note GitHub has taken.
+    var onSent: (Note) -> Void = { _ in }
     /// GitHub refused the last note in a way that waiting will not fix, for example after the GitHub App was removed from the repository.
     private(set) var wasRefused = false
 
@@ -32,12 +36,12 @@ final class NoteOutbox {
         self.now = now
         self.timeZone = timeZone
         self.suffix = suffix
-        refreshPendingCount()
+        refreshPending()
     }
 
     func add(body: String) throws {
         try store.add(Note(body: body, createdAt: now(), timeZone: timeZone(), suffix: suffix()))
-        refreshPendingCount()
+        refreshPending()
     }
 
     /// Sends the pending notes oldest first and stops at the first one GitHub does not take; the rest wait for the next call.
@@ -49,9 +53,9 @@ final class NoteOutbox {
         isSending = true
         defer {
             isSending = false
-            refreshPendingCount()
+            refreshPending()
         }
-        while let destination, let note = try? store.firstPending() {
+        while let destination, let note = try? store.pending().first {
             do {
                 try await api.createFile(
                     at: note.repositoryPath,
@@ -61,7 +65,8 @@ final class NoteOutbox {
                 )
                 try store.markSent(note)
                 wasRefused = false
-                refreshPendingCount()
+                refreshPending()
+                onSent(note)
             } catch GitHubAPIError.fileAlreadyExists {
                 // Another device wrote a different note in the same second and drew the same suffix.
                 guard (try? store.replacePending(note, with: note.renamed(suffix: suffix()))) != nil else { return }
@@ -77,7 +82,7 @@ final class NoteOutbox {
     /// 409 is a commit racing another writer to the branch, and 429 is rate limiting; both pass on their own.
     private static let transientStatuses: Set<Int> = Set([409, 429]).union(500..<600)
 
-    private func refreshPendingCount() {
-        pendingCount = (try? store.pendingCount()) ?? pendingCount
+    private func refreshPending() {
+        pending = (try? store.pending()) ?? pending
     }
 }

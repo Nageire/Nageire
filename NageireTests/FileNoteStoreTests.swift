@@ -9,43 +9,63 @@ struct FileNoteStoreTests {
     private let older = Note(fileName: "2026-10-03T135812Z-a1b2.md", contents: "older\n")
     private let newer = Note(fileName: "2026-10-03T140210Z-9f3c.md", contents: "newer\n")
 
-    @Test func nothingIsPendingBeforeANoteIsAdded() throws {
-        #expect(try store.pendingCount() == 0)
-        #expect(try store.firstPending() == nil)
+    @Test func nothingIsStoredBeforeANoteIsAdded() throws {
+        #expect(try store.pending().isEmpty)
+        #expect(try store.library().isEmpty)
     }
 
-    @Test func theOldestAddedNoteIsFirstAndSurvivesANewStoreOnTheSameDirectory() throws {
+    @Test func addedNotesArePendingOldestFirstAndSurviveANewStoreOnTheSameDirectory() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try store.add(newer)
         try store.add(older)
 
         let reopened = FileNoteStore(directory: directory)
 
-        #expect(try reopened.pendingCount() == 2)
-        #expect(try reopened.firstPending() == older)
+        #expect(try reopened.pending() == [older, newer])
     }
 
-    @Test func aSentNoteLeavesThePendingOnesAndStaysOnTheDevice() throws {
+    @Test func aSentNoteMovesFromThePendingOnesIntoTheLibraryAtItsRepositoryPath() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try store.add(older)
         try store.add(newer)
 
         try store.markSent(older)
 
-        #expect(try store.pendingCount() == 1)
-        #expect(try store.firstPending() == newer)
-        let kept = try String(contentsOf: directory.appending(path: "sent/\(older.fileName)"), encoding: .utf8)
-        #expect(kept == "older\n")
+        #expect(try store.pending() == [newer])
+        #expect(try store.library() == [StoredFile(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: Data("older\n".utf8))])
     }
 
     @Test func replacingAPendingNoteKeepsOnlyTheReplacement() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try store.add(older)
-        let renamed = older.renamed(suffix: "ffff")
 
-        try store.replacePending(older, with: renamed)
+        try store.replacePending(older, with: older.renamed(suffix: "ffff"))
 
-        #expect(try store.pendingCount() == 1)
-        #expect(try store.firstPending() == Note(fileName: "2026-10-03T135812Z-ffff.md", contents: "older\n"))
+        #expect(try store.pending() == [Note(fileName: "2026-10-03T135812Z-ffff.md", contents: "older\n")])
+    }
+
+    @Test func libraryFilesAreSavedReplacedAndRemovedByPath() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = "notes/2026/11/2026-11-01T090000Z-07de.md"
+        try store.saveToLibrary(StoredFile(path: path, contents: Data("first\n".utf8)))
+        try store.saveToLibrary(StoredFile(path: path, contents: Data("second\n".utf8)))
+
+        #expect(try store.library() == [StoredFile(path: path, contents: Data("second\n".utf8))])
+
+        try store.removeFromLibrary(path: path)
+
+        #expect(try store.library().isEmpty)
+    }
+
+    @Test func removingTheLibraryLeavesThePendingNotes() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try store.add(older)
+        try store.saveToLibrary(StoredFile(path: "notes/2026/11/a.md", contents: Data("a\n".utf8)))
+
+        try store.removeLibrary()
+        try store.removeLibrary()
+
+        #expect(try store.library().isEmpty)
+        #expect(try store.pending() == [older])
     }
 }

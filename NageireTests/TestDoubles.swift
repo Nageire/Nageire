@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 @testable import Nageire
 
 @MainActor
@@ -80,11 +81,34 @@ final class FakeAPI: GitHubAPI {
     func currentUserLogin() async throws -> String { try login.get() }
     func installedRepositories() async throws -> [Repository] { try repositories.get() }
 
+    /// What the repository holds, as path to content.
+    var remoteNotes: Result<[String: String], Error> = .success([:])
+    private(set) var fetchedBlobs: [String] = []
+
+    private(set) var listedRepositories: [String] = []
+
+    func noteFiles(in repository: Repository) async throws -> [RemoteFile] {
+        listedRepositories.append(repository.fullName)
+        await Task.yield()
+        return try remoteNotes.get().map { RemoteFile(path: $0.key, sha: NoteLibrary.blobSHA(of: Data($0.value.utf8))) }
+    }
+
+    func blob(_ sha: String, in repository: Repository) async throws -> Data {
+        fetchedBlobs.append(sha)
+        await Task.yield()
+        let contents = try remoteNotes.get().values.first { NoteLibrary.blobSHA(of: Data($0.utf8)) == sha }
+        return Data(try #require(contents).utf8)
+    }
+
     func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
         createFileAttempts.append(CreatedFile(path: path, repository: repository.fullName, content: String(decoding: content, as: UTF8.self), message: message))
         await Task.yield()
         if !createFileResults.isEmpty {
             try createFileResults.removeFirst().get()
+        }
+        if var notes = try? remoteNotes.get() {
+            notes[path] = String(decoding: content, as: UTF8.self)
+            remoteNotes = .success(notes)
         }
     }
 }
@@ -92,21 +116,25 @@ final class FakeAPI: GitHubAPI {
 @MainActor
 final class InMemoryNoteStore: NoteStore {
     private(set) var outbox: [Note] = []
-    private(set) var sent: [Note] = []
+    private(set) var files: [String: Data] = [:]
 
     func add(_ note: Note) throws { outbox.append(note) }
-    func pendingCount() throws -> Int { outbox.count }
-    func firstPending() throws -> Note? { outbox.min { $0.fileName < $1.fileName } }
+    func pending() throws -> [Note] { outbox.sorted { $0.fileName < $1.fileName } }
 
     func markSent(_ note: Note) throws {
         outbox.removeAll { $0 == note }
-        sent.append(note)
+        files[note.repositoryPath] = Data(note.contents.utf8)
     }
 
     func replacePending(_ note: Note, with replacement: Note) throws {
         outbox.removeAll { $0 == note }
         outbox.append(replacement)
     }
+
+    func library() throws -> [StoredFile] { files.map { StoredFile(path: $0.key, contents: $0.value) } }
+    func saveToLibrary(_ file: StoredFile) throws { files[file.path] = file.contents }
+    func removeFromLibrary(path: String) throws { files[path] = nil }
+    func removeLibrary() throws { files = [:] }
 }
 
 extension DeviceCode {
