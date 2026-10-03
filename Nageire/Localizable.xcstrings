@@ -101,6 +101,16 @@
         }
       }
     },
+    "GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub で Nageire の認可を求められます。Nageire が読み書きできるのは、インストール先に選んだリポジトリだけです。"
+          }
+        }
+      }
+    },
     "Install on GitHub" : {
       "localizations" : {
         "ja" : {

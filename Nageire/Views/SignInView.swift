@@ -39,6 +39,12 @@ struct SignInView: View {
 
     private var introduction: some View {
         VStack(spacing: 8) {
+            Image(.appLogo)
+                .resizable()
+                .frame(width: 96, height: 96)
+                .clipShape(.rect(cornerRadius: 22))
+                .accessibilityHidden(true)
+                .padding(.bottom, 16)
             Text(verbatim: "Nageire")
                 .font(.largeTitle.bold())
             Text("Toss in your thoughts, arrange them later.")
@@ -78,6 +84,12 @@ struct SignInView: View {
             Text("Waiting for authorization…")
                 .foregroundStyle(.secondary)
         }
+        // GitHub's device authorization page shows neither the app's logo nor its description,
+        // so the user learns here what that page will ask for.
+        Text("GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
         Button("Cancel", role: .cancel) { signInTask?.cancel() }
     }
 
