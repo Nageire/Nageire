@@ -20,8 +20,13 @@ struct NoteListView: View {
         NavigationSplitView {
             list(of: notes)
                 .navigationTitle(Text(verbatim: "Nageire"))
-                .navigationSplitViewColumnWidth(min: 240, ideal: 320)
+                #if os(macOS)
+                // The toolbar's own search field takes so much room that the new-note button
+                // is pushed into the overflow menu; in the sidebar it sits above the list it filters.
+                .searchable(text: $query, placement: .sidebar)
+                #else
                 .searchable(text: $query)
+                #endif
                 .refreshable { await model.syncNotes() }
                 .safeAreaInset(edge: .bottom) { status }
                 .toolbar {
@@ -30,15 +35,25 @@ struct NoteListView: View {
                         Button("Settings", systemImage: "gearshape") { isShowingSettings = true }
                     }
                     #endif
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("New note", systemImage: "square.and.pencil", action: startNewNote)
+                    if !isWide {
+                        ToolbarItem(placement: .primaryAction) { newNoteButton }
                     }
                 }
+                .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 480)
         } detail: {
-            if let selection, let note = notes.first(where: { $0.id == selection }) {
-                NoteDetailView(note: note)
-            } else if isWide {
-                ComposeView(focusRequest: newNoteRequests)
+            Group {
+                if let selection, let note = notes.first(where: { $0.id == selection }) {
+                    NoteDetailView(note: note)
+                } else if isWide {
+                    ComposeView(focusRequest: newNoteRequests)
+                }
+            }
+            .toolbar {
+                // In a wide window the button belongs to the detail column: the sidebar's
+                // share of the toolbar is too narrow for it and drops it into the overflow menu.
+                if isWide {
+                    ToolbarItem(placement: .primaryAction) { newNoteButton }
+                }
             }
         }
         .focusedSceneValue(\.startNewNote, newNoteCommand)
@@ -112,6 +127,10 @@ struct NoteListView: View {
         return startNewNote
     }
 
+    private var newNoteButton: some View {
+        Button("New note", systemImage: "square.and.pencil", action: startNewNote)
+    }
+
     private func startNewNote() {
         // With no note selected, the detail column of a wide window is the text field.
         selection = nil
@@ -125,7 +144,8 @@ private struct NoteRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: note.body)
+            // Blank lines are skipped so that the three lines shown all carry text.
+            Text(verbatim: note.body.split(separator: "\n").filter { !$0.allSatisfy(\.isWhitespace) }.prefix(3).joined(separator: "\n"))
                 .lineLimit(3)
             HStack(spacing: 8) {
                 if let createdAt = note.createdAt {

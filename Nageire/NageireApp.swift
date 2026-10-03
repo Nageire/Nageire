@@ -6,8 +6,8 @@ struct NageireApp: App {
 
     var body: some Scene {
         #if os(macOS)
-        // One window, not a group: every window would show the same list, and a single
-        // window stays in the Window menu, which is how it comes back after being closed.
+        // One window, not a group: every window would show the same list. Closing it quits
+        // the app, as the system does for an app whose only scene is a single window.
         Window(Text(verbatim: "Nageire"), id: "main") {
             RootView()
                 .environment(model)
