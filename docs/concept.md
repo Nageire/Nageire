@@ -53,14 +53,17 @@ By principle 5 the content is already out of the developer's hands. The decision
 - A SwiftUI multiplatform app for iOS and macOS. Input happens mostly on the phone, so iOS is built out first.
 - No Git implementation on the device. Files are read and written through the GitHub REST API (Contents API). By principle 3 every note is a self-contained file, so reading and writing one file at a time covers saving and opening a note.
 - Authentication uses a GitHub App with the device flow. Permission is limited to the single repository the user picks for notes, so the app can read and write nothing but the place where notes live. Tokens are stored in the Keychain.
-- No repository name or token is hard-coded. Sign-in and the choice of destination repository are screens in the app.
+- User tokens expire after eight hours and are renewed with the refresh token. When renewal fails, the app returns to the sign-in screen.
+- The destination repository is chosen from the repositories where the user has installed the GitHub App. The app does not create repositories.
+- No repository name or token is hard-coded. Sign-in and the choice of destination repository are screens in the app. The GitHub App's client ID is public, not a token, and ships with the app.
+- The minimum OS is the current release, iOS 26 and macOS 26.
 
 ## Roadmap
 
 Build up from the smallest thing that works.
 
-1. A minimal iOS version that saves a note on the device and sends it to GitHub, and nothing else.
-2. GitHub sign-in through the device flow.
+1. GitHub sign-in through the device flow and the choice of the destination repository. Sign-in comes first so that no interim way of supplying a token is ever written.
+2. Writing a note, saving it on the device, and sending it to GitHub, and nothing else.
 3. A list of notes and search.
 4. Layout adjustments for macOS.
 5. Reflection with a language model.
@@ -68,7 +71,8 @@ Build up from the smallest thing that works.
 
 ## Open questions
 
-- The exact file name and front matter format for a note.
+- The exact file name and front matter format for a note. Two devices can produce the same timestamp for different notes, so the name needs more than the bare timestamp or a rule for the collision.
+- How notes are enumerated once the directory holds more than the 1,000 entries the Contents API lists. The Git Trees API is one candidate.
 - How much of the reflection feature lives inside the app. Running an external tool against the repository would also work.
 - Whether reflection results are written back to the repository as derived files.
 - The license.
