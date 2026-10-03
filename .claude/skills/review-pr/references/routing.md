@@ -1,0 +1,25 @@
+# Routing: changed file to knowledge
+
+Load a knowledge skill when a changed file matches a row. A skill is installed when its `SKILL.md` exists in one of the skill directories Claude Code loads; load it with the Skill tool, or read the file directly. When a row names a skill that is not installed, review that area with general knowledge and say so in the Verdict section.
+
+The repository's own rules (`CLAUDE.md`, `AGENTS.md`, `.claude/rules/`) apply to every file and outrank every row below.
+
+| Changed file | Knowledge to load | What to look at |
+|---|---|---|
+| `db/migrate/**`, `db/schema.rb`, `db/structure.sql` | `rails-schema-design`, `rails-safety` | References and keys, nullability, column types and names, comments, index justification, the order of nullable / backfill / NOT NULL, whether `down` restores, whether the application change is in the same PR |
+| `app/models/**` | `rails-schema-design`, `rails-safety`, `rails-idioms`, `dhh-rails-patterns` | Associations against the real cardinality, `dependent:`, scopes, validations that duplicate the framework, where logic lives, naming |
+| `app/controllers/**`, `config/routes.rb` | `rails-safety`, `rails-idioms`, `dhh-rails-patterns`, `api-design` when the controller serves an API | Strong Parameters, guards, error mapping, thin actions, resourceful routes; for API endpoints the method semantics, response shape, errors, and compatibility |
+| `openapi.yml`, `openapi/**`, `swagger/**`, `docs/api/**`, `*.openapi.yaml`, serializers and `jbuilder`/`jb` templates | `api-design` | Resource naming, breaking changes against the released document, `required` and nullability, `operationId`, documented error responses, what regenerated clients will see |
+| `app/views/**`, `app/components/**`, `app/helpers/**` | `rails-idioms`, `rails-safety` | Logic in templates, i18n of user-facing strings, HTML over JavaScript |
+| `app/jobs/**`, `lib/tasks/**` | `rails-safety` | Retries, fan-out, idempotency, task side effects and arguments, environment guards |
+| Other `app/**/*.rb`, `lib/**/*.rb`, `config/**/*.rb` | `rails-safety`, `rails-idioms` | Correctness, error paths, object design, naming, `lib/` versus `app/` |
+| `spec/**`, `test/**`, `tests/**`, `__tests__/**`, `*.test.*`, `*.spec.*`, `*_test.go`, `spec/factories/**` | `test-audit`, plus `rails-idioms` for RSpec | The `test-audit` authoring gate and junk patterns on each added or changed test; the failing test for a bug fix. For RSpec also factory randomness, structure, literal expectations |
+| `config/locales/**` | `rails-safety` | Keys matching `errors.add` symbols and view lookups |
+| `Gemfile`, `Gemfile.lock`, `package.json`, lock files | `rails-safety` | Pins, branch or SHA sources, version bumps of shared gems (a PR that is only a dependency update never reaches this table; see Target in `SKILL.md`) |
+| `**/*.ts`, `**/*.tsx`, `**/*.vue`, `tsconfig*.json`, `eslint.config.*`, `biome.json` | `typescript-idioms`, plus `vue-patterns` for `.vue` files and Nuxt projects, `react-patterns` for `.tsx`, Next.js, and React Native projects | Types and `any`, promise handling, schema-derived types, generated API clients; component splitting, props flow, state locality, effects and watchers, server versus client boundaries |
+| Code comments in any file, commit messages, the PR body | `writing-conventions` | What a comment adds, TODO form, what goes in the commit versus the PR |
+| `.github/workflows/**`, `actions/**/action.yml`, `.github/dependabot.yml` | `github-actions-workflows` | Script injection, dangerous triggers, permissions, SHA pins with version comments, secrets, concurrency and timeouts, reusable workflow versus composite action, how the change was exercised |
+| `Dockerfile`, `*.tf`, other infrastructure | none in this toolkit yet | The repository's rules and general knowledge; state the verification the PR shows (plan output, a real run) |
+| Anything else | none | General knowledge and the repository's rules |
+
+`dhh-rails-patterns` describes one style of Rails. Load it only when the repository follows vanilla Rails (its `CLAUDE.md` says so, or the code has no service layer); in a codebase with a declared Controller, Service, Domain, Repository layering, the repository's rules replace it, and consistency with that layering is what to check. Skipping it does not skip the placement review: where new logic lives, and which way its dependencies point, is checked in every codebase with the declared layering as the yardstick (`SKILL.md`, Step 2).
