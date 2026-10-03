@@ -1,0 +1,4 @@
+// The GitHub App's public identifiers. Neither is a secret: the client ID is
+// sent by every installed copy of the app, and the slug is part of a public URL.
+GITHUB_APP_CLIENT_ID = Iv23liyhLh1Clf0FcRyO
+GITHUB_APP_SLUG = nageire

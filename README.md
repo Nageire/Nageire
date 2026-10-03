@@ -17,4 +17,8 @@ Since the files are plain Markdown in your repository, they stay readable with a
 
 ## Status
 
-Nageire is in the planning stage. There is no code yet. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
+Nageire is at the first step of its roadmap. You can sign in with GitHub and choose the repository for your notes; writing notes is not built yet. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
+
+## Building
+
+Open `Nageire.xcodeproj` in Xcode 26 and run the `Nageire` scheme on an iOS 26 simulator or on macOS 26. The tests run from the same scheme.
