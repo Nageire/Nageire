@@ -66,8 +66,47 @@ final class FakeAPI: GitHubAPI {
     var login: Result<String, Error> = .success("octocat")
     var repositories: Result<[Repository], Error> = .success([])
 
+    struct CreatedFile: Equatable {
+        let path: String
+        let repository: String
+        let content: String
+        let message: String
+    }
+
+    /// Consumed one per call; once empty, every call succeeds.
+    var createFileResults: [Result<Void, Error>] = []
+    private(set) var createFileAttempts: [CreatedFile] = []
+
     func currentUserLogin() async throws -> String { try login.get() }
     func installedRepositories() async throws -> [Repository] { try repositories.get() }
+
+    func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
+        createFileAttempts.append(CreatedFile(path: path, repository: repository.fullName, content: String(decoding: content, as: UTF8.self), message: message))
+        await Task.yield()
+        if !createFileResults.isEmpty {
+            try createFileResults.removeFirst().get()
+        }
+    }
+}
+
+@MainActor
+final class InMemoryNoteStore: NoteStore {
+    private(set) var outbox: [Note] = []
+    private(set) var sent: [Note] = []
+
+    func add(_ note: Note) throws { outbox.append(note) }
+    func pendingCount() throws -> Int { outbox.count }
+    func firstPending() throws -> Note? { outbox.min { $0.fileName < $1.fileName } }
+
+    func markSent(_ note: Note) throws {
+        outbox.removeAll { $0 == note }
+        sent.append(note)
+    }
+
+    func replacePending(_ note: Note, with replacement: Note) throws {
+        outbox.removeAll { $0 == note }
+        outbox.append(replacement)
+    }
 }
 
 extension DeviceCode {

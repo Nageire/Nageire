@@ -1,8 +1,10 @@
 import SwiftUI
 
-struct HomeView: View {
+struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
     @State private var isChoosingRepository = false
+    @State private var isConfirmingSignOut = false
 
     var body: some View {
         NavigationStack {
@@ -13,11 +15,25 @@ struct HomeView: View {
                 }
                 Section {
                     Button("Change repository") { isChoosingRepository = true }
-                    Button("Sign out", role: .destructive) { model.signOut() }
+                    Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle(Text(verbatim: "Nageire"))
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .confirmationDialog("Sign out?", isPresented: $isConfirmingSignOut, titleVisibility: .visible) {
+                Button("Sign out", role: .destructive) { model.signOut() }
+            } message: {
+                if model.outbox.pendingCount > 0 {
+                    Text("The repository choice is removed from this device. Unsent notes stay here and are sent after you sign in again.")
+                } else {
+                    Text("The repository choice is removed from this device.")
+                }
+            }
         }
         .task { await model.refreshAccount() }
         .sheet(isPresented: $isChoosingRepository) {
@@ -33,5 +49,8 @@ struct HomeView: View {
             .frame(minWidth: 420, minHeight: 360)
             #endif
         }
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 300)
+        #endif
     }
 }

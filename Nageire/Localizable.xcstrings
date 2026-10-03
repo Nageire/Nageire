@@ -21,6 +21,16 @@
         }
       }
     },
+    "Can't write to the repository. Check it in Settings." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リポジトリに書き込めません。設定で確認してください。"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "ja" : {
@@ -91,6 +101,16 @@
         }
       }
     },
+    "Done" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了"
+          }
+        }
+      }
+    },
     "Enter this code on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -151,6 +171,16 @@
         }
       }
     },
+    "OK" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "Open GitHub" : {
       "localizations" : {
         "ja" : {
@@ -181,6 +211,26 @@
         }
       }
     },
+    "Save" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定"
+          }
+        }
+      }
+    },
     "Sign in with GitHub" : {
       "localizations" : {
         "ja" : {
@@ -197,6 +247,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "サインアウト"
+          }
+        }
+      }
+    },
+    "Sign out?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サインアウトしますか？"
           }
         }
       }
@@ -231,6 +291,36 @@
         }
       }
     },
+    "The note could not be saved" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモを保存できませんでした"
+          }
+        }
+      }
+    },
+    "The repository choice is removed from this device." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リポジトリの選択がこの端末から消えます。"
+          }
+        }
+      }
+    },
+    "The repository choice is removed from this device. Unsent notes stay here and are sent after you sign in again." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リポジトリの選択がこの端末から消えます。未送信のメモは端末に残り、次にサインインしたあとに送信されます。"
+          }
+        }
+      }
+    },
     "Toss in your thoughts, arrange them later." : {
       "localizations" : {
         "ja" : {
@@ -247,6 +337,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "もう一度試す"
+          }
+        }
+      }
+    },
+    "Unsent notes: %lld" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未送信のメモ: %lld 件"
           }
         }
       }

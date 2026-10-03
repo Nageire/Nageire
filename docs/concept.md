@@ -22,7 +22,7 @@ Notes kept over years outlive the app that wrote them. To avoid data that become
 
 ### 2. No organizing at input time
 
-The app does not ask for folders or tags. Files are named by timestamp and placed flat.
+The app does not ask for folders or tags. A file is named by the time it was written, and the directory it goes into follows from that time, so nothing about where a note lives is asked of the user.
 
 Asking for a category adds thinking before writing, and that much less gets written. The absence of structure is not a shortcoming; it is the purpose described in "The problem".
 
@@ -52,6 +52,11 @@ By principle 5 the content is already out of the developer's hands. The decision
 
 - A SwiftUI multiplatform app for iOS and macOS. Input happens mostly on the phone, so iOS is built out first.
 - No Git implementation on the device. Files are read and written through the GitHub REST API (Contents API). By principle 3 every note is a self-contained file, so reading and writing one file at a time covers saving and opening a note.
+- A note is the file `notes/YYYY/MM/<timestamp>-<suffix>.md`. The timestamp is the UTC time of writing, so that name order is writing order whatever time zone each device is in, and the suffix is four random hexadecimal digits, so that two devices writing in the same second produce different names. One directory per month keeps every directory far below the 1,000 entries the Contents API lists.
+- A note starts with front matter holding one field, `created`, the time of writing with its UTC offset. The UTC file name alone would lose whether a note was written in the morning or at night.
+- A saved note is not edited by the app. Sending a note only ever creates a file, which is what keeps writes from several devices free of conflicts.
+- Notes are sent right after saving, and again when the app is opened or brought to the front. Nothing is sent while the app is closed.
+- A device belongs to one person. Notes not yet sent stay on the device through a sign-out and go to the repository chosen after the next sign-in, whoever signs in.
 - Authentication uses a GitHub App with the device flow. Permission is limited to the single repository the user picks for notes, so the app can read and write nothing but the place where notes live. Tokens are stored in the Keychain.
 - User tokens expire after eight hours and are renewed with the refresh token. When renewal fails, the app returns to the sign-in screen.
 - The destination repository is chosen from the repositories where the user has installed the GitHub App. The app does not create repositories.
@@ -72,8 +77,9 @@ Build up from the smallest thing that works.
 
 ## Open questions
 
-- The exact file name and front matter format for a note. Two devices can produce the same timestamp for different notes, so the name needs more than the bare timestamp or a rule for the collision.
-- How notes are enumerated once the directory holds more than the 1,000 entries the Contents API lists. The Git Trees API is one candidate.
+- How the list and search read notes across month directories. Listing one directory per month costs a request each; the Git Trees API returns the whole tree in one.
+- Whether a saved note can be edited, and how an edit from one device meets the same note on another.
+- Whether notes are also sent while the app is closed.
 - How much of the reflection feature lives inside the app. Running an external tool against the repository would also work.
 - Whether reflection results are written back to the repository as derived files.
 - The license.

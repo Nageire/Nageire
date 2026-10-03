@@ -8,7 +8,7 @@ The name comes from nageire (投入), a style of ikebana in which flowers are pl
 
 ## How it works
 
-- Each note is one Markdown file named by its timestamp, stored flat in a GitHub repository you choose.
+- Each note is one Markdown file named by its timestamp, stored by month in a GitHub repository you choose.
 - Notes are saved on the device first and sent to GitHub in the background.
 - There is no server run by the developer. Your data lives on your device and in your GitHub repository, and nothing is collected.
 - Reflection runs on a language model with your own API key. Before any note content is sent to it, the app asks for your consent.
@@ -17,7 +17,7 @@ Since the files are plain Markdown in your repository, they stay readable with a
 
 ## Status
 
-Nageire is at the first step of its roadmap. You can sign in with GitHub and choose the repository for your notes; writing notes is not built yet. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
+Nageire is at the second step of its roadmap. You can sign in with GitHub, choose the repository for your notes, and write notes that are saved on the device and sent to that repository. The list of notes and search are not built yet. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
 
 ## Building
 

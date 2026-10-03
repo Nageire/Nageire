@@ -16,7 +16,7 @@ struct RootView: View {
                     }
             }
         } else {
-            HomeView()
+            ComposeView()
         }
     }
 }
