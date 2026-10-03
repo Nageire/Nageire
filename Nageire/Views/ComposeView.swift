@@ -1,44 +1,43 @@
 import SwiftUI
 
+/// The text field for a new note, shown as the detail column of a wide window and in a sheet over a narrow one.
 struct ComposeView: View {
+    /// Changes each time the user asks for a new note, which puts the cursor in the field even when it is already showing.
+    let focusRequest: Int
+    var onSaved: () -> Void = {}
+
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
     // Stored outside the view so that a draft survives the app being closed before it is saved.
     @AppStorage("draft") private var draft = ""
     @FocusState private var isEditing: Bool
     @State private var saveFailed = false
 
     var body: some View {
-        NavigationStack {
-            TextEditor(text: $draft)
-                .focused($isEditing)
-                .font(.body)
-                .padding(.horizontal)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel", role: .cancel) { dismiss() }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save", action: save)
-                            .keyboardShortcut(.return, modifiers: .command)
-                            .disabled(draft.allSatisfy(\.isWhitespace))
-                    }
+        TextEditor(text: $draft)
+            .focused($isEditing)
+            .font(.body)
+            .padding(.horizontal)
+            .navigationTitle("New note")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .disabled(draft.allSatisfy(\.isWhitespace))
                 }
-        }
-        .onAppear { isEditing = true }
-        .alert("The note could not be saved", isPresented: $saveFailed) {
-            Button("OK", role: .cancel) {}
-        }
-        #if os(macOS)
-        .frame(minWidth: 480, minHeight: 360)
-        #endif
+            }
+            .onAppear { isEditing = true }
+            .onChange(of: focusRequest) { isEditing = true }
+            .alert("The note could not be saved", isPresented: $saveFailed) {
+                Button("OK", role: .cancel) {}
+            }
     }
 
     private func save() {
         do {
             try model.saveNote(body: draft)
             draft = ""
-            dismiss()
+            onSaved()
         } catch {
             saveFailed = true
         }

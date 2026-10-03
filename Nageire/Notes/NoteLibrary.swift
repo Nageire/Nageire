@@ -23,7 +23,7 @@ final class NoteLibrary {
     }
 
     /// The notes for the list: the copy of what GitHub holds together with the notes still waiting to be sent.
-    func notes(including pending: [Note] = [], matching query: String = "") -> [NoteEntry] {
+    func notes(including pending: [Note] = []) -> [NoteEntry] {
         var all = sent
         if !pending.isEmpty {
             // A note whose commit landed while its response was lost is on GitHub and still pending
@@ -33,8 +33,7 @@ final class NoteLibrary {
             all += pending.map { NoteEntry(path: $0.repositoryPath, contents: $0.contents, isPending: true) }
             all.sort { NoteEntry.isNewer($0, $1) }
         }
-        let query = query.trimmingCharacters(in: .whitespaces)
-        return query.isEmpty ? all : all.filter { $0.body.localizedStandardContains(query) }
+        return all
     }
 
     /// Adds a note this device has just sent, which saves fetching it back.
@@ -126,5 +125,12 @@ final class NoteLibrary {
         files
             .map { NoteEntry(path: $0.path, contents: String(decoding: $0.contents, as: UTF8.self), isPending: false) }
             .sorted { NoteEntry.isNewer($0, $1) }
+    }
+}
+
+extension [NoteEntry] {
+    func matching(_ query: String) -> [NoteEntry] {
+        let query = query.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty ? self : filter { $0.body.localizedStandardContains(query) }
     }
 }
