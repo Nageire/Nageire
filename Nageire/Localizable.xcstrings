@@ -161,12 +161,22 @@
         }
       }
     },
+    "New Note" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新規メモ"
+          }
+        }
+      }
+    },
     "New note" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しいメモ"
+            "value" : "新規メモ"
           }
         }
       }

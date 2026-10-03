@@ -99,9 +99,9 @@ struct NoteLibraryTests {
         let library = library()
         await library.refresh(from: repository)
 
-        #expect(library.notes(matching: "clinic").map(\.body) == ["Went to the Clinic"])
-        #expect(library.notes(matching: "  ").count == 2)
-        #expect(library.notes(matching: "dentist").isEmpty)
+        #expect(library.notes().matching("clinic").map(\.body) == ["Went to the Clinic"])
+        #expect(library.notes().matching("  ").count == 2)
+        #expect(library.notes().matching("dentist").isEmpty)
     }
 
     @Test func aNoteThisDeviceSentIsListedWithoutARefresh() {

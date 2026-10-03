@@ -41,8 +41,8 @@ final class AppModel {
     }
 
     /// The notes for the list, newest first: what GitHub holds and what is still waiting to be sent.
-    func notes(matching query: String = "") -> [NoteEntry] {
-        library.notes(including: outbox.pending, matching: query)
+    func notes() -> [NoteEntry] {
+        library.notes(including: outbox.pending)
     }
 
     func completeSignIn(with grant: TokenGrant) throws {
