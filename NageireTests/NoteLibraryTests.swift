@@ -185,6 +185,6 @@ struct NoteLibraryTests {
 
     @Test func theBlobIdentifierMatchesTheOneGitComputes() {
         // `printf 'hello\n' | git hash-object --stdin`
-        #expect(NoteLibrary.blobSHA(of: Data("hello\n".utf8)) == "ce013625030ba8dba906f756967f9e9ca394464a")
+        #expect(RemoteFile.sha(of: Data("hello\n".utf8)) == "ce013625030ba8dba906f756967f9e9ca394464a")
     }
 }

@@ -22,15 +22,19 @@ extension Note {
         // The local time of writing would be lost that way, so the front matter carries it.
         let stamp = createdAt.formatted(Self.stampStyle)
         let created = createdAt.formatted(Self.createdStyle(in: timeZone))
-        // Blank lines around the text go, but the first line keeps its indentation:
-        // in Markdown it can mark a code block or a nested list item.
+        self.init(fileName: "\(stamp)-\(suffix).md", contents: "---\ncreated: \(created)\n---\n\n\(Self.trimmed(body))\n")
+    }
+
+    /// The text as it goes into a file, without the blank lines around it.
+    static func trimmed(_ body: some StringProtocol) -> String {
+        // The first line keeps its indentation: in Markdown it can mark a code block or a nested list item.
         var text = body.split(separator: "\n", omittingEmptySubsequences: false)
             .drop { $0.allSatisfy(\.isWhitespace) }
             .joined(separator: "\n")
         while text.last?.isWhitespace == true {
             text.removeLast()
         }
-        self.init(fileName: "\(stamp)-\(suffix).md", contents: "---\ncreated: \(created)\n---\n\n\(text)\n")
+        return text
     }
 
     /// The format of the time in a file name, as in `2026-10-03T135812Z`.

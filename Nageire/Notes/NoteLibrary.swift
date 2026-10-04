@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import Observation
 
@@ -69,7 +68,7 @@ final class NoteLibrary {
         do {
             // The local side is read before the remote side. A note sent while this runs is then
             // in neither list, and is left alone instead of being dropped as "gone from GitHub".
-            let local = Dictionary(uniqueKeysWithValues: try store.library().map { ($0.path, Self.blobSHA(of: $0.contents)) })
+            let local = Dictionary(uniqueKeysWithValues: try store.library().map { ($0.path, RemoteFile.sha(of: $0.contents)) })
             let remote = try await api.noteFiles(in: repository)
             guard generation == self.generation else { return }
 
@@ -110,15 +109,6 @@ final class NoteLibrary {
             sent = Self.entries(of: (try? store.library()) ?? [])
             lastRefreshFailed = true
         }
-    }
-
-    /// The identifier Git gives a file's content, which is what the repository's tree lists.
-    /// Computing it locally tells an unchanged file from a changed one without keeping a separate index.
-    static func blobSHA(of contents: Data) -> String {
-        var hasher = Insecure.SHA1()
-        hasher.update(data: Data("blob \(contents.count)\0".utf8))
-        hasher.update(data: contents)
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     private static func entries(of files: [StoredFile]) -> [NoteEntry] {

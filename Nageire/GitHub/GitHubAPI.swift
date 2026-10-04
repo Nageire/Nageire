@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct Repository: Hashable, Identifiable {
@@ -20,6 +21,15 @@ struct RemoteFile: Equatable {
     let path: String
     /// The Git blob identifier of the content.
     let sha: String
+
+    /// The identifier Git gives a file's content. Computing it locally tells an unchanged file
+    /// from a changed one without fetching it or keeping a separate index.
+    static func sha(of contents: Data) -> String {
+        var hasher = Insecure.SHA1()
+        hasher.update(data: Data("blob \(contents.count)\0".utf8))
+        hasher.update(data: contents)
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 enum GitHubAPIError: Error, Equatable {

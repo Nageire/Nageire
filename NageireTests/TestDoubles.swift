@@ -90,13 +90,13 @@ final class FakeAPI: GitHubAPI {
     func noteFiles(in repository: Repository) async throws -> [RemoteFile] {
         listedRepositories.append(repository.fullName)
         await Task.yield()
-        return try remoteNotes.get().map { RemoteFile(path: $0.key, sha: NoteLibrary.blobSHA(of: Data($0.value.utf8))) }
+        return try remoteNotes.get().map { RemoteFile(path: $0.key, sha: RemoteFile.sha(of: Data($0.value.utf8))) }
     }
 
     func blob(_ sha: String, in repository: Repository) async throws -> Data {
         fetchedBlobs.append(sha)
         await Task.yield()
-        let contents = try remoteNotes.get().values.first { NoteLibrary.blobSHA(of: Data($0.utf8)) == sha }
+        let contents = try remoteNotes.get().values.first { RemoteFile.sha(of: Data($0.utf8)) == sha }
         return Data(try #require(contents).utf8)
     }
 
