@@ -26,4 +26,12 @@ final class RepositoryPickerModel {
             }
         }
     }
+
+    /// Reloads a list that is already shown, keeping it in place until the new one arrives and when the reload fails.
+    func refresh() async {
+        guard case .loaded = state else { return }
+        if let repositories = try? await api.installedRepositories(), !Task.isCancelled {
+            state = .loaded(repositories)
+        }
+    }
 }

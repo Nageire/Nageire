@@ -5,6 +5,7 @@ struct RepositoryPickerView: View {
     @State private var reloadCount = 0
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
 
     init(api: GitHubAPI) {
@@ -18,9 +19,9 @@ struct RepositoryPickerView: View {
                 ProgressView()
             case .loaded(let repositories) where repositories.isEmpty:
                 ContentUnavailableView {
-                    Label("No repositories available", systemImage: "tray")
+                    Label("Install Nageire on a repository", systemImage: "tray")
                 } description: {
-                    Text("Install the Nageire GitHub App on the repository where your notes will live, then reload.")
+                    Text("On GitHub, choose “Only select repositories” and pick the one where your notes will live. Nageire can read and write nothing else.")
                 } actions: {
                     Button("Install on GitHub") { openURL(model.configuration.installationURL) }
                         .buttonStyle(.borderedProminent)
@@ -65,5 +66,11 @@ struct RepositoryPickerView: View {
         }
         // Keyed on the counter so that a reload cancels the load still in flight instead of racing it.
         .task(id: reloadCount) { await picker.load() }
+        // Installing happens in the browser, so the list is read again when the app comes back to the front.
+        .task(id: scenePhase) {
+            if scenePhase == .active {
+                await picker.refresh()
+            }
+        }
     }
 }
