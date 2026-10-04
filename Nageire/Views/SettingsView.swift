@@ -51,7 +51,7 @@ struct SettingsView: View {
         .task { await model.refreshAccount() }
         .sheet(isPresented: $isChoosingRepository) {
             NavigationStack {
-                RepositoryPickerView(api: model.api)
+                RepositoryPickerView(api: model.api) { isChoosingRepository = false }
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel", role: .cancel) { isChoosingRepository = false }

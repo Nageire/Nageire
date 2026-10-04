@@ -6,10 +6,13 @@ struct RepositoryPickerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dismiss) private var dismiss
+    private let onSelect: () -> Void
 
-    init(api: GitHubAPI) {
+    // The presenter closes the picker. On macOS the dismiss action of a view that nothing
+    // presented closes its window, and closing the only window quits the app.
+    init(api: GitHubAPI, onSelect: @escaping () -> Void = {}) {
         _picker = State(initialValue: RepositoryPickerModel(api: api))
+        self.onSelect = onSelect
     }
 
     var body: some View {
@@ -32,7 +35,7 @@ struct RepositoryPickerView: View {
                         ForEach(repositories) { repository in
                             Button {
                                 model.select(repository)
-                                dismiss()
+                                onSelect()
                             } label: {
                                 HStack {
                                     Text(verbatim: repository.fullName)
