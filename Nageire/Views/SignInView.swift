@@ -49,11 +49,30 @@ struct SignInView: View {
                 .font(.largeTitle.bold())
             Text("Toss in your thoughts, arrange them later.")
                 .foregroundStyle(.secondary)
-            Text("Notes are stored in a GitHub repository you choose.")
-                .foregroundStyle(.secondary)
-                .padding(.top, 16)
+            steps
+                .padding(.top, 24)
         }
         .multilineTextAlignment(.center)
+    }
+
+    // GitHub's pages do not say that installing follows authorizing, so the whole path is
+    // laid out before it starts and the empty repository list after sign-in is expected.
+    private var steps: some View {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
+            step(1, "Enter a code on GitHub")
+            step(2, "Authorize Nageire")
+            step(3, "Install it on the repository for your notes")
+        }
+        .multilineTextAlignment(.leading)
+    }
+
+    private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
+        GridRow {
+            Text(number, format: .number)
+                .font(.callout.monospacedDigit().bold())
+                .foregroundStyle(.secondary)
+            Text(text)
+        }
     }
 
     private func signInButton(_ title: LocalizedStringKey) -> some View {

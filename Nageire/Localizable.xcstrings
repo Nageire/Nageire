@@ -21,6 +21,16 @@
         }
       }
     },
+    "Authorize Nageire" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nageire を認可する"
+          }
+        }
+      }
+    },
     "Can't write to the repository. Check it in Settings." : {
       "localizations" : {
         "ja" : {
@@ -161,6 +171,16 @@
         }
       }
     },
+    "Enter a code on GitHub" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub でコードを入力する"
+          }
+        }
+      }
+    },
     "Enter this code on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -181,22 +201,32 @@
         }
       }
     },
+    "Install Nageire on a repository" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nageire をリポジトリにインストール"
+          }
+        }
+      }
+    },
+    "Install it on the repository for your notes" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモを保存するリポジトリにインストールする"
+          }
+        }
+      }
+    },
     "Install on GitHub" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub でインストール"
-          }
-        }
-      }
-    },
-    "Install the Nageire GitHub App on the repository where your notes will live, then reload." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "メモを保存するリポジトリに Nageire の GitHub App をインストールしてから、再読み込みしてください。"
           }
         }
       }
@@ -241,32 +271,22 @@
         }
       }
     },
-    "No repositories available" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選べるリポジトリがありません"
-          }
-        }
-      }
-    },
-    "Notes are stored in a GitHub repository you choose." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "メモは、あなたが選んだ GitHub リポジトリに保存されます。"
-          }
-        }
-      }
-    },
     "OK" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
+          }
+        }
+      }
+    },
+    "On GitHub, choose “Only select repositories” and pick the one where your notes will live. Nageire can read and write nothing else." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub で「Only select repositories」を選び、メモを保存するリポジトリを指定してください。Nageire はそれ以外を読み書きできません。"
           }
         }
       }

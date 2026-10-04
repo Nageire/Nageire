@@ -69,6 +69,8 @@ By principle 5 the content is already out of the developer's hands. The decision
 - Authentication uses a GitHub App with the device flow. Permission is limited to the single repository the user picks for notes, so the app can read and write nothing but the place where notes live. Tokens are stored in the Keychain.
 - User tokens expire after eight hours and are renewed with the refresh token. When renewal fails, the app returns to the sign-in screen.
 - The destination repository is chosen from the repositories where the user has installed the GitHub App. The app does not create repositories.
+- GitHub's device authorization page shows neither the app's logo nor its description, and installing the GitHub App is a separate page that GitHub does not lead to. The app's own screens carry the explanation: the first screen lists the three steps (enter a code, authorize, install on the repository for notes), the code screen says what GitHub will ask for, and the repository list, while empty, says how to install. GitHub opens in the browser, where the user is already signed in, and the repository list is read again when the app comes back to the front.
+- The app icon is one Icon Composer file, `AppIcon.icon`, in three layers: the background, the vase with its branches, and the flowers. The system renders the light, dark, tinted, and clear appearances from it.
 - No repository name or token is hard-coded. Sign-in and the choice of destination repository are screens in the app. The GitHub App's client ID is public, not a token, and ships with the app.
 - The minimum OS is the current release, iOS 26 and macOS 26.
 
@@ -81,7 +83,7 @@ Build up from the smallest thing that works.
 3. A list of notes and search.
 4. Layout adjustments for macOS.
 5. Editing and deleting notes.
-6. The finished sign-in experience and app icon. GitHub's device authorization page shows neither the app's logo nor its description, so the app's own screens carry the explanation of what that page will ask for. The icon moves to layered artwork so that the system can render its light, dark, and tinted appearances.
+6. The finished sign-in experience and app icon.
 7. Distribution through TestFlight, then release on the App Store.
 
 Reflection with a language model is set aside for now and has no place in this order yet.

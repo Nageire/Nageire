@@ -5,10 +5,14 @@ struct RepositoryPickerView: View {
     @State private var reloadCount = 0
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    private let onSelect: () -> Void
 
-    init(api: GitHubAPI) {
+    // The presenter closes the picker. On macOS the dismiss action of a view that nothing
+    // presented closes its window, and closing the only window quits the app.
+    init(api: GitHubAPI, onSelect: @escaping () -> Void = {}) {
         _picker = State(initialValue: RepositoryPickerModel(api: api))
+        self.onSelect = onSelect
     }
 
     var body: some View {
@@ -18,9 +22,9 @@ struct RepositoryPickerView: View {
                 ProgressView()
             case .loaded(let repositories) where repositories.isEmpty:
                 ContentUnavailableView {
-                    Label("No repositories available", systemImage: "tray")
+                    Label("Install Nageire on a repository", systemImage: "tray")
                 } description: {
-                    Text("Install the Nageire GitHub App on the repository where your notes will live, then reload.")
+                    Text("On GitHub, choose “Only select repositories” and pick the one where your notes will live. Nageire can read and write nothing else.")
                 } actions: {
                     Button("Install on GitHub") { openURL(model.configuration.installationURL) }
                         .buttonStyle(.borderedProminent)
@@ -31,7 +35,7 @@ struct RepositoryPickerView: View {
                         ForEach(repositories) { repository in
                             Button {
                                 model.select(repository)
-                                dismiss()
+                                onSelect()
                             } label: {
                                 HStack {
                                     Text(verbatim: repository.fullName)
@@ -65,5 +69,11 @@ struct RepositoryPickerView: View {
         }
         // Keyed on the counter so that a reload cancels the load still in flight instead of racing it.
         .task(id: reloadCount) { await picker.load() }
+        // Installing happens in the browser, so the list is read again when the app comes back to the front.
+        .task(id: scenePhase) {
+            if scenePhase == .active {
+                await picker.refresh()
+            }
+        }
     }
 }
