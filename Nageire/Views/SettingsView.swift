@@ -43,7 +43,7 @@ struct SettingsView: View {
             Button("Sign out", role: .destructive) { model.signOut() }
         } message: {
             if model.outbox.pendingCount > 0 {
-                Text("The repository choice is removed from this device. Unsent notes stay here and are sent after you sign in again.")
+                Text("The repository choice is removed from this device. Unsent notes and changes stay here and are sent after you sign in again.")
             } else {
                 Text("The repository choice is removed from this device.")
             }

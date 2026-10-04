@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import Observation
 
@@ -11,7 +10,8 @@ final class NoteLibrary {
 
     private let store: NoteStore
     private let api: GitHubAPI
-    private var isRefreshing = false
+    /// The repository a refresh is reading now.
+    private var refreshing: Repository?
     private var requestedRepository: Repository?
     /// Counts the times the copy was emptied, so that a refresh begun before that can tell its result is for a repository no longer shown.
     private var generation = 0
@@ -22,25 +22,41 @@ final class NoteLibrary {
         sent = Self.entries(of: (try? store.library()) ?? [])
     }
 
-    /// The notes for the list: the copy of what GitHub holds together with the notes still waiting to be sent.
-    func notes(including pending: [Note] = []) -> [NoteEntry] {
-        var all = sent
-        if !pending.isEmpty {
-            // A note whose commit landed while its response was lost is on GitHub and still pending
-            // here. A refresh then fetches it, and it would be listed twice under one path.
-            let pendingPaths = Set(pending.map(\.repositoryPath))
-            all.removeAll { pendingPaths.contains($0.path) }
-            all += pending.map { NoteEntry(path: $0.repositoryPath, contents: $0.contents, isPending: true) }
-            all.sort { NoteEntry.isNewer($0, $1) }
+    /// The notes for the list: the copy of what GitHub holds, with what is still waiting to be sent laid over it.
+    func notes(including pending: [Note] = [], unsent changes: [NoteChange] = []) -> [NoteEntry] {
+        guard !pending.isEmpty || !changes.isEmpty else { return sent }
+        // The copy itself stays what GitHub holds, so a refresh needs no knowledge of the changes
+        // and cannot undo one. A pending note is replaced as well: when its commit landed and
+        // only the response was lost, a refresh has fetched it, and it would be listed twice.
+        var unsent = pending.map { NoteEntry(path: $0.repositoryPath, contents: $0.contents, isPending: true) }
+        var replaced = Set(unsent.map(\.path))
+        for change in changes {
+            replaced.insert(change.path)
+            if case let .update(path, contents) = change {
+                unsent.append(NoteEntry(path: path, contents: String(decoding: contents, as: UTF8.self), isPending: true))
+            }
         }
-        return all
+        return (sent.filter { !replaced.contains($0.path) } + unsent).sorted { NoteEntry.isNewer($0, $1) }
     }
 
     /// Adds a note this device has just sent, which saves fetching it back.
     func add(_ note: Note) {
-        sent.removeAll { $0.path == note.repositoryPath }
-        sent.append(NoteEntry(path: note.repositoryPath, contents: note.contents, isPending: false))
-        sent.sort { NoteEntry.isNewer($0, $1) }
+        list(path: note.repositoryPath, contents: note.contents)
+    }
+
+    /// Brings the list up to a change GitHub has just taken from this device.
+    func apply(_ change: NoteChange) {
+        switch change {
+        case let .update(path, contents):
+            list(path: path, contents: String(decoding: contents, as: UTF8.self))
+        case let .delete(path):
+            sent.removeAll { $0.path == path }
+        }
+        // A refresh under way may have listed the repository before the change landed there,
+        // and would put the note back as it was. Another one after it sets that right.
+        if let refreshing, requestedRepository == nil {
+            requestedRepository = refreshing
+        }
     }
 
     /// Brings the device's copy in line with the repository: fetches what is new or changed, drops what is gone.
@@ -48,11 +64,11 @@ final class NoteLibrary {
         // A request made during a refresh is not dropped: it may name another repository,
         // and the list would otherwise stay on the previous one until the next request.
         requestedRepository = repository
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
+        guard refreshing == nil else { return }
+        defer { refreshing = nil }
         while let repository = requestedRepository {
             requestedRepository = nil
+            refreshing = repository
             await bringInLine(with: repository)
         }
     }
@@ -69,7 +85,7 @@ final class NoteLibrary {
         do {
             // The local side is read before the remote side. A note sent while this runs is then
             // in neither list, and is left alone instead of being dropped as "gone from GitHub".
-            let local = Dictionary(uniqueKeysWithValues: try store.library().map { ($0.path, Self.blobSHA(of: $0.contents)) })
+            let local = Dictionary(uniqueKeysWithValues: try store.library().map { ($0.path, RemoteFile.sha(of: $0.contents)) })
             let remote = try await api.noteFiles(in: repository)
             guard generation == self.generation else { return }
 
@@ -112,13 +128,10 @@ final class NoteLibrary {
         }
     }
 
-    /// The identifier Git gives a file's content, which is what the repository's tree lists.
-    /// Computing it locally tells an unchanged file from a changed one without keeping a separate index.
-    static func blobSHA(of contents: Data) -> String {
-        var hasher = Insecure.SHA1()
-        hasher.update(data: Data("blob \(contents.count)\0".utf8))
-        hasher.update(data: contents)
-        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    private func list(path: String, contents: String) {
+        sent.removeAll { $0.path == path }
+        sent.append(NoteEntry(path: path, contents: contents, isPending: false))
+        sent.sort { NoteEntry.isNewer($0, $1) }
     }
 
     private static func entries(of files: [StoredFile]) -> [NoteEntry] {

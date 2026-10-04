@@ -68,4 +68,70 @@ struct FileNoteStoreTests {
         #expect(try store.library().isEmpty)
         #expect(try store.pending() == [older])
     }
+    @Test func aRemovedPendingNoteIsNoLongerPending() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try store.add(older)
+        try store.add(newer)
+
+        try store.removePending(older)
+
+        #expect(try store.pending() == [newer])
+    }
+
+    @Test func recordedChangesSurviveANewStoreAndTheLibraryBeingRemoved() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let update = NoteChange.update(path: "notes/2026/10/a.md", contents: Data("edited\n".utf8))
+        let deletion = NoteChange.delete(path: "notes/2026/11/b.md")
+        try store.record(update)
+        try store.record(deletion)
+        try store.removeLibrary()
+
+        #expect(try FileNoteStore(directory: directory).changes() == [update, deletion])
+    }
+
+    @Test func aChangeTakesThePlaceOfTheOneWaitingForTheSamePath() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = "notes/2026/10/a.md"
+        try store.record(.update(path: path, contents: Data("first\n".utf8)))
+        try store.record(.update(path: path, contents: Data("second\n".utf8)))
+
+        #expect(try store.changes() == [.update(path: path, contents: Data("second\n".utf8))])
+
+        try store.record(.delete(path: path))
+
+        #expect(try store.changes() == [.delete(path: path)])
+    }
+
+    @Test func resolvingAChangeBringsTheLibraryUpToIt() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let kept = "notes/2026/10/a.md"
+        let dropped = "notes/2026/11/b.md"
+        try store.saveToLibrary(StoredFile(path: kept, contents: Data("before\n".utf8)))
+        try store.saveToLibrary(StoredFile(path: dropped, contents: Data("before\n".utf8)))
+        try store.record(.update(path: kept, contents: Data("edited\n".utf8)))
+        try store.record(.delete(path: dropped))
+
+        try store.resolve(.update(path: kept, contents: Data("edited\n".utf8)))
+        try store.resolve(.delete(path: dropped))
+
+        #expect(try store.library() == [StoredFile(path: kept, contents: Data("edited\n".utf8))])
+        #expect(try store.changes().isEmpty)
+    }
+
+    @Test func resolvingAChangeRemovesItUnlessAnotherOneHasTakenItsPlace() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = "notes/2026/10/a.md"
+        let first = NoteChange.update(path: path, contents: Data("first\n".utf8))
+        let second = NoteChange.update(path: path, contents: Data("second\n".utf8))
+        try store.record(first)
+        try store.record(second)
+
+        try store.resolve(first)
+
+        #expect(try store.changes() == [second])
+
+        try store.resolve(second)
+
+        #expect(try store.changes().isEmpty)
+    }
 }

@@ -51,11 +51,16 @@ By principle 5 the content is already out of the developer's hands. The decision
 ## Technical decisions
 
 - A SwiftUI multiplatform app for iOS and macOS. Input happens mostly on the phone, so iOS is built out first.
-- No Git implementation on the device. Notes are written through the GitHub REST API (Contents API), one request per note, and listed and read through the Git Trees and Blobs APIs. By principle 3 every note is a self-contained file, so no operation needs more than one file at a time.
+- No Git implementation on the device. Notes are written, edited, and deleted through the GitHub REST API (Contents API), one file per request, and listed and read through the Git Trees and Blobs APIs. By principle 3 every note is a self-contained file, so no operation needs more than one file at a time.
 - A note is the file `notes/YYYY/MM/<timestamp>-<suffix>.md`. The timestamp is the UTC time of writing, so that name order is writing order whatever time zone each device is in, and the suffix is four random hexadecimal digits, so that two devices writing in the same second produce different names. One directory per month keeps every directory far below the 1,000 entries the Contents API lists.
-- A note starts with front matter holding one field, `created`, the time of writing with its UTC offset. The UTC file name alone would lose whether a note was written in the morning or at night.
-- A saved note is not edited by the app. Sending a note only ever creates a file, which is what keeps writes from several devices free of conflicts.
-- Notes are sent right after saving, and again when the app is opened or brought to the front. Nothing is sent while the app is closed.
+- A note starts with front matter holding `created`, the time of writing with its UTC offset, and once it has been edited `updated` as well. The UTC file name alone would lose whether a note was written in the morning or at night.
+- A note can be edited and deleted in the app. Both take effect on the device at once and are sent afterwards like a new note, so neither waits for the network.
+- An edit replaces the text and leaves the file name and the front matter as they are, apart from `updated`, the time of the last edit. A file without front matter, which the app did not write, is not given one.
+- When a note was changed elsewhere before an edit or a deletion from this device arrives, the one that arrives last wins: an edit overwrites the other version or brings a deleted file back, and a deletion removes the file whatever it holds. The app shows no conflict. Git keeps the version that lost, and one person rarely changes the same note on two devices at once.
+- The device's copy stays what the repository holds. An edit or a deletion not yet sent is laid over the copy when the list is shown, so a refresh does not undo it.
+- An edit or a deletion not yet sent stays on the device through a sign-out, like a note not yet sent, and goes to the repository chosen next. In a different repository the edit creates the note there, and the deletion finds no file and ends.
+- Deleting asks for confirmation every time. The app has no trash, and a deleted note comes back only from the Git history.
+- Notes and changes to them are sent right after saving, and again when the app is opened or brought to the front. Nothing is sent while the app is closed.
 - The list shows every note in the repository, not only those written on the device. The device keeps a copy, so the list and search work offline. The copy is brought up to date when the app is opened or brought to the front: the Git Trees API lists everything under `notes/` at once, and only files that are new or changed are fetched.
 - The app opens on the list, newest note first, and writing is one tap away. Principle 4 puts writing at once before everything else; the list won that place because seeing what was last written is what most often prompts the next note. The cost is one tap, and no network wait is added to writing.
 - In a wide window, on macOS and iPad, the list and one note sit side by side, and a new note is written in the place where a note is read. With no note selected that place is the text field, so there writing is at hand as soon as the window opens. A compact-width window, on iPhone or a narrowed iPad window, keeps the single column and writes in a sheet.
@@ -75,13 +80,14 @@ Build up from the smallest thing that works.
 2. Writing a note, saving it on the device, and sending it to GitHub, and nothing else.
 3. A list of notes and search.
 4. Layout adjustments for macOS.
-5. Reflection with a language model.
+5. Editing and deleting notes.
 6. The finished sign-in experience and app icon. GitHub's device authorization page shows neither the app's logo nor its description, so the app's own screens carry the explanation of what that page will ask for. The icon moves to layered artwork so that the system can render its light, dark, and tinted appearances.
 7. Distribution through TestFlight, then release on the App Store.
 
+Reflection with a language model is set aside for now and has no place in this order yet.
+
 ## Open questions
 
-- Whether a saved note can be edited or deleted from the app, and how an edit from one device meets the same note on another. For now a note is changed on GitHub and the change shows up in the list.
 - Whether notes are also sent while the app is closed.
 - How much of the reflection feature lives inside the app. Running an external tool against the repository would also work.
 - Whether reflection results are written back to the repository as derived files.

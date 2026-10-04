@@ -111,12 +111,52 @@
         }
       }
     },
+    "Delete" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "削除"
+          }
+        }
+      }
+    },
+    "Delete this note?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このメモを削除しますか？"
+          }
+        }
+      }
+    },
     "Done" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "完了"
+          }
+        }
+      }
+    },
+    "Edit" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編集"
+          }
+        }
+      }
+    },
+    "Edited %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ に編集"
           }
         }
       }
@@ -157,6 +197,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "メモを保存するリポジトリに Nageire の GitHub App をインストールしてから、再読み込みしてください。"
+          }
+        }
+      }
+    },
+    "It is deleted from the GitHub repository as well." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub のリポジトリからも削除されます。"
           }
         }
       }
@@ -331,6 +381,16 @@
         }
       }
     },
+    "The note could not be deleted" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモを削除できませんでした"
+          }
+        }
+      }
+    },
     "The note could not be saved" : {
       "localizations" : {
         "ja" : {
@@ -351,12 +411,12 @@
         }
       }
     },
-    "The repository choice is removed from this device. Unsent notes stay here and are sent after you sign in again." : {
+    "The repository choice is removed from this device. Unsent notes and changes stay here and are sent after you sign in again." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "リポジトリの選択がこの端末から消えます。未送信のメモは端末に残り、次にサインインしたあとに送信されます。"
+            "value" : "リポジトリの選択がこの端末から消えます。未送信のメモと変更は端末に残り、次にサインインしたあとに送信されます。"
           }
         }
       }

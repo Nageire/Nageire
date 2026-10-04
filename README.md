@@ -17,7 +17,7 @@ Since the files are plain Markdown in your repository, they stay readable with a
 
 ## Status
 
-Nageire is at the fourth step of its roadmap. You can sign in with GitHub, choose the repository for your notes, write notes that are saved on the device and sent to that repository, and read and search every note the repository holds. Reflection with a language model is not built yet. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
+Nageire is at the fifth step of its roadmap. You can sign in with GitHub, choose the repository for your notes, write notes that are saved on the device and sent to that repository, read and search every note the repository holds, and edit and delete them. Reflection with a language model is not built yet and is set aside for now. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
 
 ## Building
 
