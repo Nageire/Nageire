@@ -187,4 +187,66 @@ struct NoteLibraryTests {
         // `printf 'hello\n' | git hash-object --stdin`
         #expect(RemoteFile.sha(of: Data("hello\n".utf8)) == "ce013625030ba8dba906f756967f9e9ca394464a")
     }
+
+    @Test func anEditStillToBeSentIsListedInPlaceOfTheCopyAndMarked() async {
+        api.remoteNotes = .success([october: "October\n", november: "November\n"])
+        let library = library()
+        await library.refresh(from: repository)
+        let changes = [NoteChange.update(path: october, contents: Data("Edited here\n".utf8))]
+
+        #expect(library.notes(unsent: changes).map(\.body) == ["November", "Edited here"])
+        #expect(library.notes(unsent: changes).map(\.isPending) == [false, true])
+
+        await library.refresh(from: repository)
+
+        #expect(library.notes(unsent: changes).map(\.body) == ["November", "Edited here"])
+    }
+
+    @Test func aDeletionStillToBeSentKeepsTheNoteOutOfTheListThroughARefresh() async {
+        api.remoteNotes = .success([october: "October\n", november: "November\n"])
+        let library = library()
+        await library.refresh(from: repository)
+        let changes = [NoteChange.delete(path: october)]
+
+        await library.refresh(from: repository)
+
+        #expect(library.notes(unsent: changes).map(\.body) == ["November"])
+    }
+
+    @Test func anEditOfANoteTheCopyDoesNotHoldIsListedAllTheSame() {
+        let changes = [NoteChange.update(path: october, contents: Data("Edited before signing out\n".utf8))]
+
+        #expect(library().notes(unsent: changes).map(\.body) == ["Edited before signing out"])
+    }
+
+    @Test func aChangeGitHubHasTakenIsListedWithoutARefresh() async {
+        api.remoteNotes = .success([october: "October\n", november: "November\n"])
+        let library = library()
+        await library.refresh(from: repository)
+
+        library.apply(.update(path: october, contents: Data("Edited\n".utf8)))
+        library.apply(.delete(path: november))
+
+        #expect(library.notes().map(\.body) == ["Edited"])
+        #expect(api.listedRepositories.count == 1)
+    }
+
+    @Test func aChangeTakenDuringARefreshIsFollowedByAnotherRefresh() async throws {
+        api.remoteNotes = .success([october: "October\n"])
+        let library = library()
+        await library.refresh(from: repository)
+
+        async let refreshing: Void = library.refresh(from: repository)
+        while api.listedRepositories.count < 2 {
+            await Task.yield()
+        }
+        let change = NoteChange.update(path: october, contents: Data("Edited\n".utf8))
+        try store.resolve(change)
+        api.remoteNotes = .success([october: "Edited\n"])
+        library.apply(change)
+        await refreshing
+
+        #expect(api.listedRepositories.count == 3)
+        #expect(library.notes().map(\.body) == ["Edited"])
+    }
 }

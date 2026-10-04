@@ -58,4 +58,47 @@ struct NoteEntryTests {
     @Test func anUnclosedFrontMatterLeavesTheWholeFileAsBody() {
         #expect(NoteEntry(path: path, contents: "---\ncreated: x\nBody\n", isPending: false).body == "---\ncreated: x\nBody")
     }
+    private let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+    private let editedAt = Date(timeIntervalSince1970: 1_791_035_892)
+
+    @Test func editingReplacesTheTextKeepsTheFrontMatterAndAddsTheTimeOfTheEdit() {
+        let entry = NoteEntry(path: path, contents: "---\ntitle: Clinic\ncreated: 2026-10-01T18:00:00+09:00\n---\n\nBefore\n", isPending: false)
+
+        let edited = entry.contents(withText: "\n  After\n\n", updatedAt: editedAt, timeZone: tokyo)
+
+        #expect(edited == "---\ntitle: Clinic\ncreated: 2026-10-01T18:00:00+09:00\nupdated: 2026-10-03T22:58:12+09:00\n---\n\n  After\n")
+    }
+
+    @Test func editingAgainReplacesTheTimeOfTheEarlierEdit() {
+        let entry = NoteEntry(path: path, contents: "---\ncreated: 2026-10-01T18:00:00+09:00\nupdated: 2026-10-02T08:00:00+09:00\n---\n\nBefore\n", isPending: false)
+
+        let edited = entry.contents(withText: "After", updatedAt: editedAt, timeZone: tokyo)
+
+        #expect(edited == "---\ncreated: 2026-10-01T18:00:00+09:00\nupdated: 2026-10-03T22:58:12+09:00\n---\n\nAfter\n")
+    }
+
+    @Test func editingAFileWithoutFrontMatterDoesNotGiveItOne() {
+        let entry = NoteEntry(path: path, contents: "Just text\n", isPending: false)
+
+        #expect(entry.contents(withText: "Other text", updatedAt: editedAt, timeZone: tokyo) == "Other text\n")
+    }
+
+    @Test func editingAFileWithEmptyFrontMatterPutsTheTimeOfTheEditInIt() {
+        let entry = NoteEntry(path: path, contents: "---\n---\nBody\n", isPending: false)
+
+        #expect(entry.contents(withText: "Body, edited", updatedAt: editedAt, timeZone: tokyo) == "---\nupdated: 2026-10-03T22:58:12+09:00\n---\n\nBody, edited\n")
+    }
+
+    @Test func theTimeOfTheLastEditComesFromUpdated() {
+        let entry = NoteEntry(path: path, contents: "---\ncreated: 2026-10-01T18:00:00+09:00\nupdated: 2026-10-03T22:58:12+09:00\n---\n\nBody\n", isPending: false)
+
+        #expect(entry.updatedAt == editedAt)
+        #expect(NoteEntry(path: path, contents: "Body\n", isPending: false).updatedAt == nil)
+    }
+
+    @Test func theTextToEditKeepsTheIndentationOfItsFirstLine() {
+        let entry = NoteEntry(path: path, contents: "---\ncreated: 2026-10-01T18:00:00+09:00\n---\n\n    let x = 1\nDone\n", isPending: false)
+
+        #expect(entry.editableText == "    let x = 1\nDone")
+    }
 }

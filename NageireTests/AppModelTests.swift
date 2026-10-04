@@ -182,4 +182,53 @@ struct AppModelTests {
         #expect(model.notes().map(\.body) == ["Unsent"])
         #expect(notes.files.isEmpty)
     }
+    private let remotePath = "notes/2026/10/2026-10-03T135812Z-a1b2.md"
+
+    private func modelListingOneRemoteNote() async throws -> AppModel {
+        api.remoteNotes = .success([remotePath: "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\nFrom another device\n"])
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await model.syncNotes()
+        return model
+    }
+
+    @Test func anEditedNoteShowsItsNewTextAtOnceAsUnsentAndThenReachesGitHub() async throws {
+        let model = try await modelListingOneRemoteNote()
+
+        try model.editNote(try #require(model.notes().first), text: "Edited")
+
+        #expect(model.notes().map(\.body) == ["Edited"])
+        #expect(model.notes().map(\.isPending) == [true])
+
+        await model.syncNotes()
+
+        #expect(model.notes().map(\.body) == ["Edited"])
+        #expect(model.notes().map(\.isPending) == [false])
+        #expect(try api.remoteNotes.get()[remotePath]?.hasSuffix("\n\nEdited\n") == true)
+    }
+
+    @Test func aDeletedNoteLeavesTheListAtOnceAndIsThenRemovedFromGitHub() async throws {
+        let model = try await modelListingOneRemoteNote()
+
+        try model.deleteNote(try #require(model.notes().first))
+
+        #expect(model.notes().isEmpty)
+
+        await model.syncNotes()
+
+        #expect(model.notes().isEmpty)
+        #expect(try api.remoteNotes.get().isEmpty)
+    }
+
+    @Test func anEditStillUnsentAtSignOutStaysOnTheDevice() async throws {
+        let model = try await modelListingOneRemoteNote()
+        api.changeResults = [.failure(URLError(.notConnectedToInternet))]
+        try model.editNote(try #require(model.notes().first), text: "Edited")
+        await model.outbox.send()
+
+        model.signOut()
+
+        #expect(model.outbox.pendingCount == 1)
+    }
 }

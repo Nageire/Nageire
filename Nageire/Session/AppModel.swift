@@ -38,11 +38,12 @@ final class AppModel {
         }
         session.onSignOut = { [weak self] in self?.clear() }
         outbox.onSent = { [library] in library.add($0) }
+        outbox.onChanged = { [library] in library.apply($0) }
     }
 
     /// The notes for the list, newest first: what GitHub holds and what is still waiting to be sent.
     func notes() -> [NoteEntry] {
-        library.notes(including: outbox.pending)
+        library.notes(including: outbox.pending, unsent: outbox.changes)
     }
 
     func completeSignIn(with grant: TokenGrant) throws {
@@ -76,6 +77,17 @@ final class AppModel {
     /// Saves the note on the device and starts sending it. Returns once it is saved; sending never holds up writing.
     func saveNote(body: String) throws {
         try outbox.add(body: body)
+        Task { await outbox.send() }
+    }
+
+    /// Changes the note on the device and starts sending the change, as with a new note.
+    func editNote(_ note: NoteEntry, text: String) throws {
+        try outbox.edit(note, text: text)
+        Task { await outbox.send() }
+    }
+
+    func deleteNote(_ note: NoteEntry) throws {
+        try outbox.delete(note)
         Task { await outbox.send() }
     }
 

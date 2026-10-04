@@ -262,4 +262,91 @@ struct GitHubAPIClientTests {
         #expect(String(decoding: data, as: UTF8.self) == "Hello\n")
         #expect(transport.requests.first?.url?.absoluteString == "https://api.github.com/repos/octocat/notes/git/blobs/s3")
     }
+    private let notes = Repository(owner: "octocat", name: "notes")
+
+    @Test func writingAFilePutsTheContentOverWhatThePathHolds() async throws {
+        let (client, transport) = client { request in
+            request.httpMethod == "GET" ? (200, #"{"sha":"0123abcd","content":"T2xkCg==\n"}"#) : (200, #"{"content":{}}"#)
+        }
+
+        try await client.writeFile(at: "notes/a.md", in: notes, content: Data("Hello\n".utf8), message: "Update a.md")
+
+        #expect(transport.requests.map(\.httpMethod) == ["GET", "PUT"])
+        let request = try #require(transport.requests.last)
+        #expect(request.url?.absoluteString == "https://api.github.com/repos/octocat/notes/contents/notes/a.md")
+        let body = try JSONDecoder().decode([String: String].self, from: try #require(request.httpBody))
+        #expect(body == ["message": "Update a.md", "content": "SGVsbG8K", "sha": "0123abcd"])
+    }
+
+    @Test func writingAFileCreatesItWhenThePathHoldsNone() async throws {
+        let (client, transport) = client { request in
+            request.httpMethod == "GET" ? (404, #"{"message":"Not Found"}"#) : (201, #"{"content":{}}"#)
+        }
+
+        try await client.writeFile(at: "notes/a.md", in: notes, content: Data("Hello\n".utf8), message: "Update a.md")
+
+        let body = try JSONDecoder().decode([String: String].self, from: try #require(transport.requests.last?.httpBody))
+        #expect(body == ["message": "Update a.md", "content": "SGVsbG8K"])
+    }
+
+    @Test func writingAFileCommitsNothingWhenThePathAlreadyHoldsTheSameContent() async throws {
+        let sha = RemoteFile.sha(of: Data("Hello\n".utf8))
+        let (client, transport) = client { _ in (200, #"{"sha":"\#(sha)"}"#) }
+
+        try await client.writeFile(at: "notes/a.md", in: notes, content: Data("Hello\n".utf8), message: "Update a.md")
+
+        #expect(transport.requests.map(\.httpMethod) == ["GET"])
+    }
+
+    @Test(arguments: [403, 409])
+    func writingAFileReportsTheStatusGitHubRefusedItWith(status: Int) async {
+        let (client, _) = client { request in
+            request.httpMethod == "GET" ? (200, #"{"sha":"0123abcd"}"#) : (status, #"{"message":"refused"}"#)
+        }
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(status)) {
+            try await client.writeFile(at: "notes/a.md", in: notes, content: Data("Hello\n".utf8), message: "Update a.md")
+        }
+    }
+
+    @Test func deletingAFileSendsTheIdentifierOfWhatThePathHolds() async throws {
+        let (client, transport) = client { _ in (200, #"{"sha":"0123abcd"}"#) }
+
+        try await client.deleteFile(at: "notes/a.md", in: notes, message: "Delete a.md")
+
+        #expect(transport.requests.map(\.httpMethod) == ["GET", "DELETE"])
+        let request = try #require(transport.requests.last)
+        #expect(request.url?.absoluteString == "https://api.github.com/repos/octocat/notes/contents/notes/a.md")
+        let body = try JSONDecoder().decode([String: String].self, from: try #require(request.httpBody))
+        #expect(body == ["message": "Delete a.md", "sha": "0123abcd"])
+    }
+
+    @Test func deletingAFileSucceedsWithoutACommitWhenTheRepositoryHoldsNoSuchFile() async throws {
+        let (client, transport) = client { request in
+            request.url?.path == "/repos/octocat/notes" ? (200, "{}") : (404, #"{"message":"Not Found"}"#)
+        }
+
+        try await client.deleteFile(at: "notes/a.md", in: notes, message: "Delete a.md")
+
+        #expect(transport.requests.map(\.httpMethod) == ["GET", "GET"])
+    }
+
+    @Test func deletingAFileFailsForARepositoryTheAppCannotReachInsteadOfTakingTheFileForGone() async {
+        let (client, _) = client { _ in (404, #"{"message":"Not Found"}"#) }
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(404)) {
+            try await client.deleteFile(at: "notes/a.md", in: notes, message: "Delete a.md")
+        }
+    }
+
+    @Test(arguments: [404, 409])
+    func deletingAFileReportsTheStatusGitHubRefusedItWith(status: Int) async {
+        let (client, _) = client { request in
+            request.httpMethod == "GET" ? (200, #"{"sha":"0123abcd"}"#) : (status, #"{"message":"refused"}"#)
+        }
+
+        await #expect(throws: GitHubAPIError.unexpectedStatus(status)) {
+            try await client.deleteFile(at: "notes/a.md", in: notes, message: "Delete a.md")
+        }
+    }
 }

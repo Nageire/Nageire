@@ -8,6 +8,10 @@ struct NoteListView: View {
     @State private var selection: NoteEntry.ID?
     @State private var isComposingInSheet = false
     @State private var newNoteRequests = 0
+    @State private var noteToDelete: NoteEntry?
+    /// The text of the note being edited in the detail column. Nil while no note is being edited.
+    @State private var editDraft: String?
+    @State private var deleteFailed = false
     #if !os(macOS)
     @State private var isShowingSettings = false
     #endif
@@ -43,7 +47,7 @@ struct NoteListView: View {
         } detail: {
             Group {
                 if let selection, let note = notes.first(where: { $0.id == selection }) {
-                    NoteDetailView(note: note)
+                    NoteDetailView(note: note, draft: $editDraft) { noteToDelete = note }
                 } else if isWide {
                     ComposeView(focusRequest: newNoteRequests)
                 }
@@ -82,6 +86,29 @@ struct NoteListView: View {
         #if !os(macOS)
         .sheet(isPresented: $isShowingSettings) { SettingsView() }
         #endif
+        .confirmationDialog("Delete this note?", isPresented: isConfirmingDeletion, titleVisibility: .visible, presenting: noteToDelete) { note in
+            Button("Delete", role: .destructive) { delete(note) }
+        } message: { _ in
+            Text("It is deleted from the GitHub repository as well.")
+        }
+        .alert("The note could not be deleted", isPresented: $deleteFailed) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    private var isConfirmingDeletion: Binding<Bool> {
+        Binding { noteToDelete != nil } set: { if !$0 { noteToDelete = nil } }
+    }
+
+    private func delete(_ note: NoteEntry) {
+        do {
+            try model.deleteNote(note)
+            if selection == note.id {
+                selection = nil
+            }
+        } catch {
+            deleteFailed = true
+        }
     }
 
     @ViewBuilder
@@ -90,7 +117,22 @@ struct NoteListView: View {
         if !notes.isEmpty {
             List(notes, selection: $selection) { note in
                 NoteRow(note: note)
+                    .swipeActions {
+                        // Without the destructive role: that role takes the row away at once,
+                        // before the confirmation is answered.
+                        Button("Delete", systemImage: "trash") { noteToDelete = note }
+                            .tint(.red)
+                    }
+                    .contextMenu {
+                        Button("Delete", systemImage: "trash", role: .destructive) { noteToDelete = note }
+                    }
             }
+            #if os(macOS)
+            .onDeleteCommand { noteToDelete = notes.first { $0.id == selection } }
+            #endif
+            // In a wide window the list sits beside the note being edited, and selecting
+            // another note there would discard the edit without a word.
+            .disabled(editDraft != nil)
         } else if query.isEmpty {
             ContentUnavailableView {
                 Label("No notes yet", systemImage: "square.and.pencil")
@@ -119,16 +161,18 @@ struct NoteListView: View {
         .padding(8)
     }
 
-    /// Nil while the settings sheet covers the list, which disables the menu command instead of opening a sheet under a sheet.
+    /// Nil while the settings sheet covers the list or a note is being edited, which disables the menu command instead of opening a sheet under a sheet.
     private var newNoteCommand: (() -> Void)? {
         #if !os(macOS)
         if isShowingSettings { return nil }
         #endif
+        if editDraft != nil { return nil }
         return startNewNote
     }
 
     private var newNoteButton: some View {
         Button("New note", systemImage: "square.and.pencil", action: startNewNote)
+            .disabled(editDraft != nil)
     }
 
     private func startNewNote() {
@@ -164,15 +208,52 @@ private struct NoteRow: View {
 
 struct NoteDetailView: View {
     let note: NoteEntry
+    /// The text being edited. Nil while the note is only read.
+    @Binding var draft: String?
+    let onDelete: () -> Void
+
+    @Environment(AppModel.self) private var model
 
     var body: some View {
-        ScrollView {
-            Text(verbatim: note.body)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
+        Group {
+            if let draft {
+                NoteEditor(text: Binding { draft } set: { self.draft = $0 }) {
+                    try model.editNote(note, text: draft)
+                    self.draft = nil
+                }
+                // The note can leave the list under the edit, deleted on another device.
+                .onDisappear { self.draft = nil }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(verbatim: note.body)
+                            .textSelection(.enabled)
+                        if let updatedAt = note.updatedAt {
+                            Text("Edited \(updatedAt, format: NoteEntry.dateFormat)")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                }
+            }
         }
         .navigationTitle(note.createdAt.map { Text($0, format: NoteEntry.dateFormat) } ?? Text(verbatim: ""))
         .toolbarTitleDisplayMode(.inline)
+        // In a narrow window the back button would leave the note with the edit neither saved nor cancelled.
+        .navigationBarBackButtonHidden(draft != nil)
+        .toolbar {
+            if draft != nil {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", role: .cancel) { draft = nil }
+                }
+            } else {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                    Button("Edit", systemImage: "pencil") { draft = note.editableText }
+                }
+            }
+        }
     }
 }

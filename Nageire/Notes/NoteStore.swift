@@ -6,6 +6,20 @@ struct StoredFile: Equatable {
     let contents: Data
 }
 
+/// A change to a note GitHub already holds, made on the device and waiting to be sent.
+enum NoteChange: Equatable {
+    case update(path: String, contents: Data)
+    case delete(path: String)
+
+    var path: String {
+        switch self {
+        case let .update(path, _), let .delete(path): path
+        }
+    }
+
+    var fileName: Substring { path[fileNameStart(of: path)...] }
+}
+
 protocol NoteStore {
     func add(_ note: Note) throws
     /// The notes not yet sent to GitHub, oldest first.
@@ -14,6 +28,15 @@ protocol NoteStore {
     func markSent(_ note: Note) throws
     /// Swaps a pending note for the same note under a different name.
     func replacePending(_ note: Note, with replacement: Note) throws
+    func removePending(_ note: Note) throws
+
+    /// The changes not yet sent to GitHub, at most one per path.
+    func changes() throws -> [NoteChange]
+    /// Takes the place of a change already waiting for the same path.
+    func record(_ change: NoteChange) throws
+    /// Brings the library up to a change GitHub has taken and stops the change waiting.
+    /// A different change recorded for the path in the meantime stays.
+    func resolve(_ change: NoteChange) throws
 
     /// The device's copy of the files GitHub holds.
     func library() throws -> [StoredFile]
@@ -22,16 +45,20 @@ protocol NoteStore {
     func removeLibrary() throws
 }
 
-/// Keeps every note as a file on the device: `outbox` until GitHub has it, `library` for what GitHub holds.
+/// Keeps every note as a file on the device: `outbox` until GitHub has it, `library` for what GitHub holds,
+/// and `updates` and `deletions` for changes to what GitHub holds.
 struct FileNoteStore: NoteStore {
     let directory: URL
 
     private var outbox: URL { directory.appending(path: "outbox", directoryHint: .isDirectory) }
     private var libraryDirectory: URL { directory.appending(path: "library", directoryHint: .isDirectory) }
+    // An update keeps the whole edited file outside the library, which is emptied at sign-out
+    // while the edit still has to be sent.
+    private var updates: URL { directory.appending(path: "updates", directoryHint: .isDirectory) }
+    private var deletions: URL { directory.appending(path: "deletions", directoryHint: .isDirectory) }
 
     func add(_ note: Note) throws {
-        try FileManager.default.createDirectory(at: outbox, withIntermediateDirectories: true)
-        try Data(note.contents.utf8).write(to: outbox.appending(path: note.fileName), options: .atomic)
+        try write(Data(note.contents.utf8), to: outbox.appending(path: note.fileName))
     }
 
     func pending() throws -> [Note] {
@@ -54,17 +81,46 @@ struct FileNoteStore: NoteStore {
         try FileManager.default.moveItem(at: outbox.appending(path: note.fileName), to: outbox.appending(path: replacement.fileName))
     }
 
-    func library() throws -> [StoredFile] {
-        guard let paths = FileManager.default.subpaths(atPath: libraryDirectory.path) else { return [] }
-        return try paths.filter { $0.hasSuffix(".md") }.map {
-            StoredFile(path: $0, contents: try Data(contentsOf: libraryDirectory.appending(path: $0)))
+    func removePending(_ note: Note) throws {
+        try FileManager.default.removeItem(at: outbox.appending(path: note.fileName))
+    }
+
+    func changes() throws -> [NoteChange] {
+        try files(in: updates).map { .update(path: $0.path, contents: $0.contents) }
+            + files(in: deletions).map { .delete(path: $0.path) }
+    }
+
+    func record(_ change: NoteChange) throws {
+        switch change {
+        case let .update(path, contents):
+            try write(contents, to: updates.appending(path: path))
+            try? FileManager.default.removeItem(at: deletions.appending(path: path))
+        case let .delete(path):
+            try write(Data(), to: deletions.appending(path: path))
+            try? FileManager.default.removeItem(at: updates.appending(path: path))
         }
     }
 
+    func resolve(_ change: NoteChange) throws {
+        switch change {
+        case let .update(path, contents):
+            try saveToLibrary(StoredFile(path: path, contents: contents))
+            let file = updates.appending(path: path)
+            guard (try? Data(contentsOf: file)) == contents else { return }
+            try FileManager.default.removeItem(at: file)
+        case let .delete(path):
+            // Neither file is there when the library was emptied, or an edit was recorded, in the meantime.
+            try? FileManager.default.removeItem(at: libraryDirectory.appending(path: path))
+            try? FileManager.default.removeItem(at: deletions.appending(path: path))
+        }
+    }
+
+    func library() throws -> [StoredFile] {
+        try files(in: libraryDirectory)
+    }
+
     func saveToLibrary(_ file: StoredFile) throws {
-        let destination = libraryDirectory.appending(path: file.path)
-        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try file.contents.write(to: destination, options: .atomic)
+        try write(file.contents, to: libraryDirectory.appending(path: file.path))
     }
 
     func removeFromLibrary(path: String) throws {
@@ -74,5 +130,18 @@ struct FileNoteStore: NoteStore {
     func removeLibrary() throws {
         guard FileManager.default.fileExists(atPath: libraryDirectory.path) else { return }
         try FileManager.default.removeItem(at: libraryDirectory)
+    }
+
+    /// The Markdown files under the directory, with their paths relative to it, in path order.
+    private func files(in directory: URL) throws -> [StoredFile] {
+        guard let paths = FileManager.default.subpaths(atPath: directory.path) else { return [] }
+        return try paths.filter { $0.hasSuffix(".md") }.sorted().map {
+            StoredFile(path: $0, contents: try Data(contentsOf: directory.appending(path: $0)))
+        }
+    }
+
+    private func write(_ contents: Data, to file: URL) throws {
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try contents.write(to: file, options: .atomic)
     }
 }

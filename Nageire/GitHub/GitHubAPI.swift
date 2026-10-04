@@ -47,6 +47,10 @@ protocol GitHubAPI {
     /// Commits a new file to the default branch. Succeeds when the path already holds the same content,
     /// and throws `fileAlreadyExists` instead of overwriting different content.
     func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws
+    /// Commits the content to the path on the default branch whatever the path holds, and creates the file when there is none.
+    func writeFile(at path: String, in repository: Repository, content: Data, message: String) async throws
+    /// Removes the file from the default branch whatever it holds. Succeeds when the repository has no such file.
+    func deleteFile(at path: String, in repository: Repository, message: String) async throws
     /// Every Markdown file under `notes/` on the default branch. Empty for a repository without commits.
     func noteFiles(in repository: Repository) async throws -> [RemoteFile]
     func blob(_ sha: String, in repository: Repository) async throws -> Data
@@ -79,7 +83,7 @@ struct GitHubAPIClient: GitHubAPI {
 
     func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
         let body = try JSONEncoder().encode(["message": message, "content": content.base64EncodedString()])
-        let (_, status) = try await send("PUT", "/repos/\(repository.fullName)/contents/\(path)", body: body)
+        let (_, status) = try await send("PUT", contentsPath(path, in: repository), body: body)
         guard status == 422 else {
             guard 200..<300 ~= status else {
                 throw GitHubAPIError.unexpectedStatus(status)
@@ -91,12 +95,52 @@ struct GitHubAPIClient: GitHubAPI {
         // an earlier attempt got through and only its response was lost.
         let existing: FileContent
         do {
-            existing = try await get("/repos/\(repository.fullName)/contents/\(path)")
+            existing = try await get(contentsPath(path, in: repository))
         } catch GitHubAPIError.unexpectedStatus(404) {
             throw GitHubAPIError.unexpectedStatus(status)
         }
         guard existing.data == content else {
             throw GitHubAPIError.fileAlreadyExists
+        }
+    }
+
+    func writeFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
+        let existing = try await blobSHA(at: path, in: repository)
+        // The same content is already there when an earlier attempt got through and only its
+        // response was lost. Committing it again would add an empty commit.
+        guard existing != RemoteFile.sha(of: content) else { return }
+        var fields = ["message": message, "content": content.base64EncodedString()]
+        fields["sha"] = existing
+        let (_, status) = try await send("PUT", contentsPath(path, in: repository), body: try JSONEncoder().encode(fields))
+        guard 200..<300 ~= status else {
+            throw GitHubAPIError.unexpectedStatus(status)
+        }
+    }
+
+    func deleteFile(at path: String, in repository: Repository, message: String) async throws {
+        guard let existing = try await blobSHA(at: path, in: repository) else {
+            // GitHub answers 404 for a repository the app can no longer reach as well, and taking
+            // that for "no file" would drop the deletion while the file is still there.
+            let (_, status) = try await send("GET", "/repos/\(repository.fullName)")
+            guard 200..<300 ~= status else {
+                throw GitHubAPIError.unexpectedStatus(status)
+            }
+            return
+        }
+        let body = try JSONEncoder().encode(["message": message, "sha": existing])
+        let (_, status) = try await send("DELETE", contentsPath(path, in: repository), body: body)
+        guard 200..<300 ~= status else {
+            throw GitHubAPIError.unexpectedStatus(status)
+        }
+    }
+
+    /// The identifier of what the path holds now, which GitHub asks for before it replaces or removes a file. Nil when there is no file.
+    private func blobSHA(at path: String, in repository: Repository) async throws -> String? {
+        do {
+            let file: FileIdentity = try await get(contentsPath(path, in: repository))
+            return file.sha
+        } catch GitHubAPIError.unexpectedStatus(404) {
+            return nil
         }
     }
 
@@ -131,6 +175,10 @@ struct GitHubAPIClient: GitHubAPI {
             throw GitHubAPIError.invalidResponse
         }
         return data
+    }
+
+    private func contentsPath(_ path: String, in repository: Repository) -> String {
+        "/repos/\(repository.fullName)/contents/\(path)"
     }
 
     private func allPages<Item>(_ fetch: (Int) async throws -> (items: [Item], totalCount: Int)) async throws -> [Item] {
@@ -198,6 +246,10 @@ struct GitHubAPIClient: GitHubAPI {
 
         /// GitHub wraps the base64 text in lines.
         var data: Data? { Data(base64Encoded: content, options: .ignoreUnknownCharacters) }
+    }
+
+    private struct FileIdentity: Decodable {
+        let sha: String
     }
 
     private struct User: Decodable {

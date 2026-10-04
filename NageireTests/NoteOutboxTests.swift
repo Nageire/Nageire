@@ -164,4 +164,177 @@ struct NoteOutboxTests {
 
         #expect(outbox().pendingCount == 1)
     }
+    private let sentPath = "notes/2026/10/2026-10-01T090000Z-07de.md"
+    private var sentEntry: NoteEntry {
+        NoteEntry(path: sentPath, contents: "---\ncreated: 2026-10-01T18:00:00+09:00\n---\n\nSent\n", isPending: false)
+    }
+
+    private func entry(of note: Note) -> NoteEntry {
+        NoteEntry(path: note.repositoryPath, contents: note.contents, isPending: true)
+    }
+
+    @Test func editingANoteGitHubHoldsCommitsTheEditedFileOverIt() async throws {
+        let outbox = outbox()
+
+        try outbox.edit(sentEntry, text: "Edited")
+
+        let contents = "---\ncreated: 2026-10-01T18:00:00+09:00\nupdated: 2026-10-03T22:58:12+09:00\n---\n\nEdited\n"
+        #expect(outbox.changes == [.update(path: sentPath, contents: Data(contents.utf8))])
+        #expect(api.writeFileAttempts.isEmpty)
+
+        await outbox.send()
+
+        #expect(api.writeFileAttempts == [
+            .init(path: sentPath, repository: "octocat/notes", content: contents, message: "Update 2026-10-01T090000Z-07de.md"),
+        ])
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func editingANoteTwiceBeforeItIsSentMakesOneCommitWithTheLastText() async throws {
+        let outbox = outbox()
+        try outbox.edit(sentEntry, text: "Edited once")
+        try outbox.edit(sentEntry, text: "Edited twice")
+
+        await outbox.send()
+
+        #expect(api.writeFileAttempts.count == 1)
+        #expect(api.writeFileAttempts.first?.content.hasSuffix("\n\nEdited twice\n") == true)
+    }
+
+    @Test func deletingANoteGitHubHoldsRemovesItThereAndDropsAnEditStillWaiting() async throws {
+        let outbox = outbox()
+        try outbox.edit(sentEntry, text: "Edited")
+
+        try outbox.delete(sentEntry)
+        await outbox.send()
+
+        #expect(api.writeFileAttempts.isEmpty)
+        #expect(api.deleteFileAttempts == [
+            .init(path: sentPath, repository: "octocat/notes", message: "Delete 2026-10-01T090000Z-07de.md"),
+        ])
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func anEditedNoteNotYetSentReachesGitHubInOneCommit() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let note = outbox.pending[0]
+        clock.now += 60
+
+        try outbox.edit(entry(of: note), text: "First, edited")
+        await outbox.send()
+
+        #expect(api.createFileAttempts.isEmpty)
+        #expect(api.writeFileAttempts.map(\.path) == [note.repositoryPath])
+        #expect(api.writeFileAttempts.map(\.content) == ["---\ncreated: 2026-10-03T22:58:12+09:00\nupdated: 2026-10-03T22:59:12+09:00\n---\n\nFirst, edited\n"])
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func aDeletedNoteNotYetSentIsNeverCommitted() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let note = outbox.pending[0]
+
+        try outbox.delete(entry(of: note))
+        await outbox.send()
+
+        #expect(api.createFileAttempts.isEmpty)
+        #expect(api.writeFileAttempts.isEmpty)
+        #expect(api.deleteFileAttempts.map(\.path) == [note.repositoryPath])
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func anEditOfANoteWhoseCommitLandedUnnoticedGoesOverItInsteadOfAddingASecondFile() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let note = outbox.pending[0]
+        // The commit landed and only its response was lost.
+        api.createFileResults = [.failure(URLError(.networkConnectionLost))]
+        await outbox.send()
+        api.remoteNotes = .success([note.repositoryPath: note.contents])
+
+        try outbox.edit(entry(of: note), text: "First, edited")
+        await outbox.send()
+
+        #expect(api.createFileAttempts.count == 1)
+        #expect(try api.remoteNotes.get().keys.sorted() == [note.repositoryPath])
+        #expect(try api.remoteNotes.get()[note.repositoryPath]?.hasSuffix("\n\nFirst, edited\n") == true)
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func aNoteEditedWhileItIsBeingSentIsSentAgainAsEdited() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let note = outbox.pending[0]
+
+        async let sending: Void = outbox.send()
+        while api.createFileAttempts.isEmpty {
+            await Task.yield()
+        }
+        try outbox.edit(entry(of: note), text: "First, edited")
+        await sending
+
+        #expect(api.createFileAttempts.map(\.content) == [note.contents])
+        #expect(api.writeFileAttempts.first?.content.hasSuffix("\n\nFirst, edited\n") == true)
+        #expect(store.files[note.repositoryPath] == api.writeFileAttempts.first.map { Data($0.content.utf8) })
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func aNoteDeletedWhileItIsBeingSentIsDeletedOnGitHubToo() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let note = outbox.pending[0]
+
+        async let sending: Void = outbox.send()
+        while api.createFileAttempts.isEmpty {
+            await Task.yield()
+        }
+        try outbox.delete(entry(of: note))
+        await sending
+
+        #expect(api.deleteFileAttempts.map(\.path) == [note.repositoryPath])
+        #expect(store.files.isEmpty)
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func aChangeGitHubDoesNotTakeWaitsForTheNextSend() async throws {
+        let outbox = outbox()
+        try outbox.edit(sentEntry, text: "Edited")
+        api.changeResults = [.failure(URLError(.notConnectedToInternet)), .failure(GitHubAPIError.unexpectedStatus(403))]
+
+        await outbox.send()
+
+        #expect(outbox.pendingCount == 1)
+        #expect(!outbox.wasRefused)
+
+        await outbox.send()
+
+        #expect(outbox.pendingCount == 1)
+        #expect(outbox.wasRefused)
+
+        await outbox.send()
+
+        #expect(outbox.pendingCount == 0)
+        #expect(!outbox.wasRefused)
+    }
+
+    @Test func savingANoteWithItsTextUnchangedIsNotAnEdit() throws {
+        let outbox = outbox()
+
+        try outbox.edit(sentEntry, text: "Sent\n\n")
+
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func eachChangeGitHubTakesIsReported() async throws {
+        let outbox = outbox()
+        var reported: [NoteChange] = []
+        outbox.onChanged = { reported.append($0) }
+        try outbox.edit(sentEntry, text: "Edited")
+        let update = try #require(outbox.changes.first)
+
+        await outbox.send()
+
+        #expect(reported == [update])
+    }
 }

@@ -111,12 +111,47 @@ final class FakeAPI: GitHubAPI {
             remoteNotes = .success(notes)
         }
     }
+
+    struct DeletedFile: Equatable {
+        let path: String
+        let repository: String
+        let message: String
+    }
+
+    /// Consumed one per call to `writeFile` or `deleteFile`; once empty, every call succeeds.
+    var changeResults: [Result<Void, Error>] = []
+    private(set) var writeFileAttempts: [CreatedFile] = []
+    private(set) var deleteFileAttempts: [DeletedFile] = []
+
+    func writeFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
+        let content = String(decoding: content, as: UTF8.self)
+        writeFileAttempts.append(CreatedFile(path: path, repository: repository.fullName, content: content, message: message))
+        try await change(path, to: content)
+    }
+
+    func deleteFile(at path: String, in repository: Repository, message: String) async throws {
+        deleteFileAttempts.append(DeletedFile(path: path, repository: repository.fullName, message: message))
+        try await change(path, to: nil)
+    }
+
+    private func change(_ path: String, to content: String?) async throws {
+        await Task.yield()
+        if !changeResults.isEmpty {
+            try changeResults.removeFirst().get()
+        }
+        if var notes = try? remoteNotes.get() {
+            notes[path] = content
+            remoteNotes = .success(notes)
+        }
+    }
 }
 
 @MainActor
 final class InMemoryNoteStore: NoteStore {
     private(set) var outbox: [Note] = []
     private(set) var files: [String: Data] = [:]
+
+    private(set) var recorded: [NoteChange] = []
 
     func add(_ note: Note) throws { outbox.append(note) }
     func pending() throws -> [Note] { outbox.sorted { $0.fileName < $1.fileName } }
@@ -129,6 +164,32 @@ final class InMemoryNoteStore: NoteStore {
     func replacePending(_ note: Note, with replacement: Note) throws {
         outbox.removeAll { $0 == note }
         outbox.append(replacement)
+    }
+
+    func removePending(_ note: Note) throws { outbox.removeAll { $0 == note } }
+
+    /// In the order `FileNoteStore` gives: updates before deletions, each in path order.
+    func changes() throws -> [NoteChange] {
+        recorded.sorted { a, b in
+            switch (a, b) {
+            case (.update, .delete): true
+            case (.delete, .update): false
+            default: a.path < b.path
+            }
+        }
+    }
+
+    func record(_ change: NoteChange) throws {
+        recorded.removeAll { $0.path == change.path }
+        recorded.append(change)
+    }
+
+    func resolve(_ change: NoteChange) throws {
+        switch change {
+        case let .update(path, contents): files[path] = contents
+        case let .delete(path): files[path] = nil
+        }
+        recorded.removeAll { $0 == change }
     }
 
     func library() throws -> [StoredFile] { files.map { StoredFile(path: $0.key, contents: $0.value) } }
