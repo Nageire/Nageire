@@ -1,11 +1,11 @@
 ---
-description: Review a pull request, a branch, or the current diff the way a senior reviewer does, and print the result to the terminal. Gathers the PR and repository context, routes each changed file to the knowledge skills that are installed (rails-safety, rails-schema-design, rails-idioms, dhh-rails-patterns, api-design, typescript-idioms, vue-patterns, react-patterns, github-actions-workflows, test-audit, writing-conventions) and to the repository's own rules, looks broadly at correctness, data model, design, naming, tests, and PR hygiene, verifies every finding before reporting it, and prints a fixed-heading Markdown report (Verdict, Must, Should, Nit, Question, Follow-ups, Missing evidence). Runs locally only and posts nothing to GitHub. Use when the user asks to review a PR, review a diff or branch, do a code review, or check a change before merge. Accepts a PR number or URL, a branch name, a commit range, or nothing (the current branch against its base).
+description: Review a pull request, a branch, or the current diff the way a senior reviewer does, and print the result to the terminal. Gathers the PR and repository context, routes each changed file to the knowledge skills that are installed (rails-safety, rails-schema-design, rails-idioms, dhh-rails-patterns, api-design, typescript-idioms, vue-patterns, react-patterns, swift-idioms, swift-concurrency, github-actions-workflows, test-audit, writing-conventions) and to the repository's own rules, looks broadly at correctness, data model, design, naming, tests, and PR hygiene, verifies every finding before reporting it, and prints a fixed-heading Markdown report (Verdict, Must, Should, Nit, Question, Follow-ups, Missing evidence). Runs locally only and posts nothing to GitHub. Use when the user asks to review a PR, review a diff or branch, do a code review, or check a change before merge. Accepts a PR number or URL, a branch name, a commit range, or nothing (the current branch against its base).
 license: MIT
 metadata:
     github-path: skills/review-pr
-    github-ref: refs/tags/v1.8.0
+    github-ref: refs/tags/v1.9.0
     github-repo: https://github.com/yamat47/github-toolkit
-    github-tree-sha: 22982ec0f839871842ce2e47471a8027726577d6
+    github-tree-sha: 1e07e4d76fd48254cddfe0da2adfaef9d79e8629
 name: review-pr
 ---
 # Review a pull request
