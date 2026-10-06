@@ -33,8 +33,15 @@ struct NageireApp: App {
 }
 
 extension NageireApp {
-    private static func makeModel() -> AppModel {
+    static func makeModel() -> AppModel {
         #if DEBUG
+        // Started for the tests or for a preview, the app would otherwise be the app of whoever
+        // works on it: it would read their tokens from the Keychain and send and fetch their notes.
+        // Xcode sets a variable for each of the two.
+        let environment = ProcessInfo.processInfo.environment
+        if environment["XCTestConfigurationFilePath"] != nil || environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            return .sample(signedIn: false)
+        }
         // Launched with `-sampleData YES`, the app shows the sample of the design.
         if UserDefaults.standard.bool(forKey: "sampleData") {
             return .sample()
