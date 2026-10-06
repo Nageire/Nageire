@@ -102,3 +102,66 @@ struct NoteEntryTests {
         #expect(entry.editableText == "    let x = 1\nDone")
     }
 }
+
+@MainActor
+struct NoteEntryTitleTests {
+    private func entry(_ body: String) -> NoteEntry {
+        NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: body, isPending: false)
+    }
+
+    @Test func aHeadingOnTheFirstLineIsTheTitleAndTheExcerptStartsUnderIt() {
+        let entry = entry("# 稽古の記録\n\n今日は**枝を二本**だけ。\n\n- 枝は水際で決まる\n- [x] 剣山を洗う\n")
+
+        #expect(entry.displayTitle == "稽古の記録")
+        #expect(entry.hasHeading)
+        #expect(entry.excerpt == "今日は枝を二本だけ。\n枝は水際で決まる\n剣山を洗う")
+    }
+
+    @Test func aPlainFirstLineIsCutAtItsFirstSentenceAndTheRestOpensTheExcerpt() {
+        let entry = entry("来週の火曜は稽古と重なる。木曜の午後に電話する。\n\n- [ ] 受付に電話\n")
+
+        #expect(entry.displayTitle == "来週の火曜は稽古と重なる。")
+        #expect(!entry.hasHeading)
+        #expect(entry.excerpt == "木曜の午後に電話する。\n受付に電話")
+    }
+
+    @Test func aFirstLineWithoutASentenceEndIsCutAtFortyCharacters() {
+        let line = String(repeating: "あ", count: 50)
+        let entry = entry(line)
+
+        #expect(entry.displayTitle == String(repeating: "あ", count: 40))
+        #expect(entry.excerpt == String(repeating: "あ", count: 10))
+    }
+
+    @Test func aFirstLineThatIsATaskOrInBoldIsTitledByItsWords() {
+        #expect(entry("- [ ] 受付に電話\n- [ ] カレンダーを直す\n").displayTitle == "受付に電話")
+        #expect(entry("**大事**な話。あとで。\n").displayTitle == "大事な話。")
+    }
+
+    @Test func anEnglishSentenceEndsAtAPeriodBeforeASpaceButNotInsideANumber() {
+        #expect(entry("Call the dentist. Fix the calendar after.\n").displayTitle == "Call the dentist.")
+        #expect(entry("Version 2.5 ships. Then rest.\n").displayTitle == "Version 2.5 ships.")
+    }
+
+    @Test func aNoteThatIsOneImageIsCalledByTheFileName() {
+        let entry = entry("![IMG_0421.jpeg](2026-10-01T111500Z-0a06/IMG_0421.jpeg)\n")
+
+        #expect(entry.displayTitle == "IMG_0421.jpeg")
+        #expect(entry.attachmentCount == 1)
+        #expect(entry.excerpt == "")
+    }
+
+    @Test func aShortFirstLineIsTheWholeTitleAndLeavesNoExcerpt() {
+        let entry = entry("雨の前のあの灰色に近い。")
+
+        #expect(entry.displayTitle == "雨の前のあの灰色に近い。")
+        #expect(entry.excerpt == "")
+    }
+
+    @Test func imageLinesCountAsAttachmentsAndLeaveTheExcerptWhileLinksKeepTheirText() {
+        let entry = entry("# 見積もり\n\n![IMG_0412.jpeg](2026-10-01T111500Z-0a06/IMG_0412.jpeg)\n\n![](https://example.com/a.png)\n\n次は[教室の予定](https://example.com)を見る。\n")
+
+        #expect(entry.attachmentCount == 1)
+        #expect(entry.excerpt == "次は教室の予定を見る。")
+    }
+}
