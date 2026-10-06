@@ -1,0 +1,222 @@
+/* The design tokens of Nageire, taken verbatim from the stylesheet of the Claude Design prototype
+   (https://claude.ai/artifact/Kjk517nBqpUeXyyhJ3UsVY). The values are the source of truth for
+   the Asset Catalog and the SwiftUI views; docs/design-reference.md says how they map.
+   One comment below is stale: the unsent mark is drawn in ink-2, not in accent-text, as the
+   renders and docs/design-reference.md show. */
+
+/* Nageire uses the platform fonts and ships none: SF Pro + Hiragino Sans (UI), New York + Hiragino Mincho ProN (serif note body), SF Mono.
+   On Windows the stack falls through to Yu Gothic / Meiryo and Yu Mincho, which cover Japanese. No webfont, no @import, no data: URI.
+   If a hosted preview ever needs one, add a single <link> for Noto Sans JP to the page head — never embed a font file. */
+
+/* Nageire color tokens. Paper, ink, vermilion — nothing else.
+   Light is :root; dark is any element with data-theme="dark" (nest it to preview both). */
+:root {
+  color-scheme: light;
+  /* brand, fixed (the logo) */
+  --brand-paper: #F2EDE3;
+  --brand-ink: #2A2825;
+  --brand-vermilion: #C1563F;
+  --logo-ink: #2A2825;       /* the logo's own two colors; they swap with the theme and are used nowhere else */
+  --logo-flower: #C1563F;
+
+  /* paper */
+  --paper: #F2EDE3;
+  --paper-raised: #FAF7F1;
+  --paper-sunken: #E8E1D4;
+  --hairline: #DAD2C3;
+  /* ink */
+  --ink: #2A2825;
+  --ink-2: #655F56;        /* changed from #6B655C: 4.86:1 on paper-sunken (was 4.44) */
+  --ink-faint: #B9B1A3;    /* Markdown marks and placeholders only — never running text */
+  /* vermilion */
+  --accent: #B8503A;        /* fills: primary button, checked checkbox, switch on */
+  --accent-text: #9E3F2B;   /* text and strokes: links, text buttons, unsent mark, banner text */
+  --accent-wash: #F1D9D1;   /* banner ground, macOS selected row */
+  --on-accent: #FAF7F1;     /* label on an accent fill (paper-raised, 4.62:1) */
+
+  /* materials */
+  --glass: rgba(250, 247, 241, 0.72);   /* the system toolbar material, approximated */
+  --scrim: rgba(42, 40, 37, 0.28);
+}
+
+/* Semantic aliases are declared on both scopes so they resolve against the theme they sit in
+   (a var() alias is resolved where it is declared, not where it is used). */
+:root, [data-theme="dark"] {
+  /* semantic aliases */
+  --surface-screen: var(--paper);
+  --surface-card: var(--paper-raised);
+  --surface-field: var(--paper-sunken);
+  --surface-sidebar: var(--paper-sunken);
+  --surface-selected: var(--accent-wash);
+  --surface-sheet: var(--paper);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-derived: var(--ink-2);
+  --text-mark: var(--ink-faint);
+  --text-placeholder: var(--ink-faint);
+  --text-accent: var(--accent-text);
+  --text-on-accent: var(--on-accent);
+  --fill-primary: var(--accent);
+  --fill-wash: var(--accent-wash);
+  --border-hairline: var(--hairline);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #1F1D1B;
+  --paper-raised: #2A2724;
+  --paper-sunken: #161412;
+  --hairline: #3A3631;
+  --ink: #EDE7DB;
+  --ink-2: #A9A194;
+  --ink-faint: #5E5850;
+  --accent: #D86A52;
+  --accent-text: #E07A61;
+  --accent-wash: #3B2620;
+  --on-accent: #1F1D1B;     /* the dark paper on the accent fill (4.88:1); light ink would be 2.8:1 */
+  --logo-ink: #F2EDE3;
+  --logo-flower: #D86A52;
+  --glass: rgba(42, 39, 36, 0.72);
+  --scrim: rgba(0, 0, 0, 0.45);
+}
+
+/* Type. UI text is the system font at Dynamic Type sizes (Large by default). */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  --font-serif: "New York", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", Georgia, serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Dynamic Type (Large) */
+  --size-large-title: 34px; --lh-large-title: 41px;
+  --size-title2: 22px;      --lh-title2: 28px;
+  --size-body: 17px;        --lh-body: 22px;
+  --size-subheadline: 15px; --lh-subheadline: 20px;
+  --size-footnote: 13px;    --lh-footnote: 18px;
+  --size-caption: 12px;     --lh-caption: 16px;
+
+  --text-large-title: 700 var(--size-large-title) / var(--lh-large-title) var(--font-ui);
+  --text-title2: 700 var(--size-title2) / var(--lh-title2) var(--font-ui);
+  --text-body: 400 var(--size-body) / var(--lh-body) var(--font-ui);
+  --text-body-semibold: 600 var(--size-body) / var(--lh-body) var(--font-ui);
+  --text-subheadline: 400 var(--size-subheadline) / var(--lh-subheadline) var(--font-ui);
+  --text-footnote: 400 var(--size-footnote) / var(--lh-footnote) var(--font-ui);
+  --text-footnote-semibold: 600 var(--size-footnote) / var(--lh-footnote) var(--font-ui);
+  --text-caption: 400 var(--size-caption) / var(--lh-caption) var(--font-ui);
+
+  /* Note body: 17 with 1.65 leading for Japanese. Serif is optional and body-only. */
+  --note-size: 17px;
+  --note-lh: 1.65;
+  --text-note: 400 var(--note-size) / var(--note-lh) var(--font-ui);
+  --text-note-serif: 400 var(--note-size) / var(--note-lh) var(--font-serif);
+  /* Headings inside a note */
+  --note-h1-size: 24px;
+  --note-h2-size: 20px;
+  --note-h3-size: 17px;
+  --note-h-weight: 600;
+  --note-h-lh: 1.35;
+  /* Mono */
+  --mono-size: 15px; --mono-lh: 22px;
+  --text-mono: 400 var(--mono-size) / var(--mono-lh) var(--font-mono);
+  /* Device code card */
+  --code-size: 38px; --code-lh: 46px; --code-tracking: 0.14em;
+  --text-code-card: 500 var(--code-size) / var(--code-lh) var(--font-mono);
+
+  /* Derived style: what the on-device model proposed. ink-2 italic. Tentative titles only. */
+  --text-derived-row: italic 600 var(--size-body) / var(--lh-body) var(--font-ui);
+  --text-derived-header: italic 600 var(--note-h1-size) / var(--note-h-lh) var(--font-ui);
+}
+
+/* A 4-point grid. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --gutter-iphone: 20px;   /* screen gutter, iPhone */
+  --gutter-mac: 24px;      /* screen gutter, macOS */
+  --row-pad-y: 12px;       /* vertical padding of every list row */
+  --row-gap: 4px;          /* title → excerpt → meta */
+  --hairline-inset: var(--gutter-iphone);  /* list separators start at the gutter */
+
+  --hit-min: 44px;         /* minimum tap target */
+  --control-h: 44px;       /* pills, fields */
+  --control-h-compact: 34px;
+  --sidebar-w: 320px;      /* macOS */
+  --quick-entry-w: 560px;
+  --quick-entry-h: 340px;
+}
+
+:root {
+  --radius-input: 10px;   /* text fields, search */
+  --radius-thumb: 10px;   /* image thumbnails in the editor */
+  --radius-card: 14px;    /* grouped settings, device-code card, macOS panels */
+  --radius-sheet: 20px;   /* sheets */
+  --radius-pill: 999px;   /* every button, the bottom bar, the undo bar */
+}
+
+/* Hairlines, not shadows. One soft warm shadow for the things that float. */
+:root {
+  --hairline-width: 1px;   /* one physical pixel on device (0.33–0.5pt); 1px on the web */
+  --shadow-float: 0 8px 24px rgba(42, 40, 37, 0.14), 0 1px 2px rgba(42, 40, 37, 0.06);
+  --shadow-none: none;
+  --blur-glass: blur(20px) saturate(1.1);
+}
+:root, [data-theme="dark"] {
+  --hairline-style: var(--hairline-width) solid var(--hairline);
+}
+[data-theme="dark"] {
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* One signature moment: a tossed note's sheet goes down, and the new row settles in at the top of the list.
+   Everything else is the system's. */
+:root {
+  --duration-sheet-down: 320ms;
+  --duration-row-settle: 480ms;
+  --delay-row-settle: 120ms;        /* the row begins while the sheet is still leaving */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-undo-visible: 10000ms;  /* the undo bar stays for ten seconds */
+  --duration-system: 250ms;          /* leave to UIKit/AppKit; documented for web previews */
+}
+@keyframes ng-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@keyframes ng-row-settle {
+  from { transform: translateY(-14px); opacity: 0; max-height: 0; }
+  60%  { opacity: 1; }
+  to   { transform: translateY(0); opacity: 1; max-height: 120px; }
+}
+
+/* Resets and the few interaction classes inline styles cannot express. */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--surface-screen);
+  color: var(--text-primary);
+  font: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--text-accent); text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 3px; text-decoration-thickness: var(--hairline-width); }
+a:hover { text-decoration-color: var(--text-accent); }
+button { font: inherit; color: inherit; }
+::placeholder { color: var(--text-placeholder); opacity: 1; }
+::selection { background: var(--accent-wash); }
+
+/* press: the system's dim; hover on macOS: a hint of paper-sunken */
+.ng-pressable { cursor: default; transition: opacity 120ms ease, background-color 120ms ease; }
+.ng-pressable:active { opacity: 0.6; }
+.ng-hover-row:hover { background: color-mix(in srgb, var(--paper-sunken) 60%, transparent); }
+.ng-focus:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ng-scroll { overflow-y: auto; scrollbar-width: none; }
+.ng-scroll::-webkit-scrollbar { display: none; }

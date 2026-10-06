@@ -17,8 +17,8 @@ Since the files are plain Markdown in your repository, they stay readable with a
 
 ## Status
 
-Nageire is at the sixth step of its roadmap. You can sign in with GitHub, choose the repository for your notes, write notes that are saved on the device and sent to that repository, read and search every note the repository holds, and edit and delete them. Reflection with a language model is not built yet and is set aside for now. The design and the reasons behind it are in [docs/concept.md](docs/concept.md).
+Nageire is at the sixth step of its roadmap. You can sign in with GitHub, choose the repository for your notes, write notes that are saved on the device and sent to that repository, read and search every note the repository holds, and edit and delete them. Reflection with a language model is not built yet and is set aside for now. The design and the reasons behind it are in [docs/concept.md](docs/concept.md). A redesign of the whole app is settled and waits to be built; its decisions are in [docs/ux-redesign.md](docs/ux-redesign.md) and the order of work in [docs/workplan.md](docs/workplan.md).
 
 ## Building
 
-Open `Nageire.xcodeproj` in Xcode 26 and run the `Nageire` scheme on an iOS 26 simulator or on macOS 26. The tests run from the same scheme.
+Open `Nageire.xcodeproj` in Xcode 27 and run the `Nageire` scheme on an iPhone simulator or on the Mac. The tests run from the same scheme.

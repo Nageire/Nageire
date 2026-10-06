@@ -1,0 +1,36 @@
+# Nageire
+
+A notes app for iOS and macOS in SwiftUI. A note is a Markdown file in the user's own GitHub repository; there is no server. The idea and every settled decision are in `docs/concept.md`; read it first in any session.
+
+## Documents
+
+- `docs/concept.md`: the principles and the decisions in force. A decision goes here once it is made.
+- `docs/ux-redesign.md`, `docs/on-device-model.md`: the decisions of the redesign, with their reasons.
+- `docs/design-reference.md` and `docs/design/`: the design to match, its tokens, and its renders.
+- `docs/ui-guide.md`: how the UI is built in SwiftUI: the shape of the code, the state, each component, the previews, and the editor.
+- `docs/workplan.md`: the order of work for the redesign, phase by phase, and how a phase is verified and merged.
+
+Documents under `docs/`, commit messages, and pull requests are written in English. The app's strings are in English and Japanese in `Nageire/Localizable.xcstrings`.
+
+## Building and testing
+
+Xcode 27 on macOS, which needs macOS 26.6 or later on Apple silicon. The scheme is `Nageire`; the tests run from it on macOS and on an iOS simulator:
+
+```
+xcodebuild test -scheme Nageire -destination 'platform=macOS'
+xcodebuild test -scheme Nageire -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+CI runs both on every pull request. A Linux session cannot build the app and is used for documents only.
+
+## Conventions
+
+- Load the `writing-conventions` skill before writing a comment, a test name, a commit message, a pull request, or a document. Its rules on what goes where and on prose apply here.
+- The `swift-idioms` and `swift-concurrency` skills under `.claude/skills` apply while writing Swift, `test-audit` while writing tests, and `github-actions-workflows` while touching `.github`. The two Swift skills were checked against Swift 6.4, which Xcode 27 carries, and prefer language mode 6; the project is in mode 5 until the migration named in `docs/workplan.md`, so a rule that needs mode 6 waits for it.
+- Structural and behavioral changes go in separate commits. No trailer or footer in a commit or pull request says a model took part.
+- A pull request body has three sections, Background, Not done, and Where to look, and nothing else. The `create-pr` skill produces it.
+- A decision recorded in `docs/concept.md` or `docs/ux-redesign.md` is built, not reopened. A new decision is proposed in the document first and built after.
+
+## State of the redesign
+
+Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded; building it has not started. The project was last built with Xcode 26 and still carries the iOS 26 and macOS 26 deployment targets, Swift language mode 5, and a CI runner from that time; moving it to Xcode 27 is the step before phase 1 in `docs/workplan.md`. Then phase 1, on a branch named there, in an environment with Xcode. Do not begin a later phase before the earlier one is merged.

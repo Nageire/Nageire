@@ -1,0 +1,86 @@
+# Building the UI
+
+This document says how the screens in [design-reference.md](design-reference.md) are built in SwiftUI: where views and state live, how each component is made from the system's parts, what each phase of [workplan.md](workplan.md) adds, and the sample data that makes a preview match the renders. It is written for an engineer, or a session, that has the design and the plan and is about to open Xcode.
+
+## Shape of the code
+
+The app keeps its layers as they are: `Nageire/Session` holds `AppModel` and the GitHub session, `Nageire/Notes` holds the library, the outbox, and the file format, and `Nageire/Views` holds the screens. The redesign adds one folder and fills the views folder:
+
+- `Nageire/Design/Tokens.swift`: the color sets of the Asset Catalog as a `ShapeStyle` extension (`.paper`, `.paperRaised`, `.paperSunken`, `.hairline`, `.ink`, `.ink2`, `.inkFaint`, `.accentText`, `.accentWash`, `.onAccent`; the accent is `.tint`), the semantic names on top of them (`.surfaceCard`, `.textSecondary`, `.textDerived`, `.textMark`), the shadow, and the spacing constants (`Spacing.gutter`, `.rowPadding`, `.rowGap`, `.control`, `.controlCompact`).
+- `Nageire/Design/Typography.swift`: the note body style with its leading, the scaled heading sizes, the derived style, and the device-code style.
+- `Nageire/Design/Styles.swift`: `PrimaryButtonStyle`, `SecondaryButtonStyle`, and `TextButtonStyle`, plus the `View` extensions for a hairline and the floating shadow.
+- `Nageire/Design/Components/`: one file per component of the design reference (`NoteRow`, `DayHeader`, `UnsentMark`, `RefusedBanner`, `UndoBar`, `EmptyState`, `NoteHeader`, `RelatedSection`, `StepList`, `DeviceCodeCard`, `AccessoryBar`), each with a `#Preview` on the sample data below.
+- `Nageire/Views/`: the screens, one file each: `SignInView`, `RepositoryPickerView`, `StreamView` (today's `NoteListView`), `TossSheet` (today's `ComposeView`), `NoteView` (today's `NoteDetailView`), `SettingsView`, and on macOS `QuickEntryWindow`.
+- `Nageire/Editor/`: phase 2, the TextKit 2 view and its Markdown styling.
+
+A view never spells a color, a size, or a font that the design names; it uses the token. A view that needs a value the tokens lack is a sign that the design reference is missing something, and the reference is extended first.
+
+## State
+
+- `AppModel` stays the one observable object in the environment, and keeps the library, the outbox, the session, and the repository. The redesign adds to it what must outlive a screen: the pending deletion (the note, the moment the undo window closes, and whether the window is paused because the app is not in front) and, from phase 5, the on-device results cache.
+- Screen state (the selection, whether the sheet is up, the search query, the open menu) stays in the screen's `@State`, as today.
+- The draft of a new note stays in `UserDefaults` through `@AppStorage("draft")`, as today, so that it survives a relaunch.
+- The undo window is a `Task` on `AppModel` that sleeps for the time left in the pending deletion, ten seconds at first, and queues the deletion when it wakes. When the scene leaves `.active`, which the root view reports from `scenePhase`, the task is cancelled and the time left is kept in the pending deletion; when the scene is active again, a new task starts with that remainder. The window therefore never runs while the bar cannot be seen, and the bar stays up throughout. "元に戻す" cancels the task and puts the note back. `UndoManager` from the environment registers the same undo so that Command-Z and the shake gesture reach it.
+- The size classes decide the layout as today: `NavigationSplitView` shows the list beside the note in a regular width and one column in a compact one, and a new note is a sheet in a compact width and the detail column otherwise.
+
+## Tokens in code
+
+- Colors are color sets in `Assets.xcassets` with an Any and a Dark appearance, named as the design reference lists them. `AccentColor` is the accent, which makes `.tint` and every system control follow it. The `ShapeStyle` extension wraps `Color("Paper")` and the rest once.
+- The semantic names are computed properties over the token names, so that a later change of a token's role (say, the sidebar surface) is one line.
+- The hairline is one physical pixel: `1 / displayScale` from `@Environment(\.displayScale)`, drawn as a `Rectangle` in `.hairline`, or the list's own separator tinted with `.hairline` and inset to the gutter.
+- The floating shadow is a `View` extension, `.floatingShadow()`, that applies two shadows in `.ink` at the opacities of the design reference, and in dark mode the black ones.
+- Type uses the system text styles, so Dynamic Type works without further work: `.largeTitle` bold, `.title2` bold, `.body`, `.subheadline`, `.footnote`, `.caption`. The note body is `.body` with `.lineSpacing` chosen so that the line height becomes 1.65 times the size at the default size, and the headings inside a note scale from 24, 20, and 17 with `@ScaledMetric(relativeTo: .body)`. The derived style is `.body.weight(.semibold).italic()` in `.ink2`. The device code is `.system(size: 38, weight: .medium, design: .monospaced)` with `.tracking(5)`, scaled with `@ScaledMetric` as well.
+
+## Components
+
+- Buttons. `PrimaryButtonStyle` draws a capsule in `.tint` with the label in `.onAccent` and `.body.weight(.semibold)`, 44 high with 20 of horizontal padding, the vase symbol at the leading edge, and the floating shadow; a `compact` parameter gives 34 high, 14 of padding, and `.subheadline.weight(.semibold)`. `SecondaryButtonStyle` is the same capsule in `.paperRaised` with a hairline stroke and the label in `.ink`. `TextButtonStyle` is the label in `.accentText` with 12 of padding. Inside a system toolbar the button is left to the system: iOS 26 draws it as glass with the accent tint, which is what the design shows in the bottom bar, so there the view sets only the tint and the label. A keyboard hint beside a button on macOS is a `Text` in `.footnote` and `.ink2`, 10 away.
+- The stream. A `List` in `.plain` style with a `Section` per day, the header being `DayHeader`, and a `NoteRow` per note. The separator is the list's, tinted `.hairline` and inset to the gutter with `.listRowInsets`. Pull to refresh stays. The row's title line uses `.body.weight(.semibold)` with `.lineLimit(1)`, the excerpt `.subheadline` in `.ink2` with `.lineLimit(2)`, and the meta line an `HStack` of 10 of spacing in `.footnote` and `.ink2`. A tentative title swaps the title's style for the derived one and adds an accessibility label that says it was suggested. The selected row on macOS is the list's selection tinted with `.accentWash`.
+- The bottom bar on iPhone. iOS 26 places the search field in the bottom toolbar through the default search toolbar item with the bottom placement, and the primary button goes into the same bar after a flexible toolbar spacer; the system wraps both in one glass group. Confirm the exact initializer names against the SDK on the day the phase starts; the shape of the bar is the system's, not a custom view. On macOS and iPad in a regular width, search stays in the sidebar through `.searchable(placement: .sidebar)` and the primary button is a toolbar item, as today.
+- The undo bar. A `.safeAreaInset(edge: .bottom)` on the stream that shows `UndoBar` while `AppModel` holds a pending deletion, above the toolbar, with a transition of move and opacity. The bar is a capsule in `.paperRaised` with the floating shadow, the message in `.subheadline`, and the action in `TextButtonStyle`.
+- The banner. `RefusedBanner` at the top of the stream as a list header, in `.accentWash` with `.accentText`, with a `NavigationLink` to Settings. It appears only while the outbox reports a refusal, never for a transient failure.
+- The toss sheet. A `.sheet` with `.presentationDragIndicator(.visible)` and the large detent, holding a `NavigationStack` whose toolbar carries the close button on the leading side, the timestamp as the principal item in `.footnote` and `.ink2`, and the compact primary "投げ入れる" on the trailing side with the Command-Return shortcut. The editor fills the rest. The accessory bar arrives with the editor in phase 2, attached on iOS with `.toolbar(placement: .keyboard)`, and its three attachment buttons act from phase 3 and are absent until then. Dismissing keeps the draft; tossing clears it after `saveNote` succeeds. When the sheet goes down, the stream inserts the new row with a spring and a move-from-top transition, which is the one animation the app owns.
+- The note screen. One `ScrollView` with 20 of vertical spacing holding `NoteHeader`, the body, and `RelatedSection`. In phase 1 the body is the existing text view in read mode with the existing Edit button kept; in phase 2 it becomes the editor and Edit, Save, and Cancel go. The toolbar holds Share and a `Menu` with GitHub で開く and 削除 as a destructive role; the menu is the system's. The back button is the navigation stack's.
+- The note header. A `.footnote` line in `.ink2` built from the written and edited dates and a checkmark symbol for sent, and, when the note has no heading and the model proposed one, the title in the derived header style with a `TextButtonStyle` "見出しにする" that inserts the heading line through the outbox's edit path.
+- The related section. A `VStack` with the label, a hairline, the rows as `NavigationLink`s to the other notes, and the footnote line. It returns `EmptyView` when the list is empty, so that a short note shows nothing.
+- Settings. A `Form` in `.grouped` style. Each group is a `Section` with the header text, and the footer text where the design has one. Rows are `LabeledContent` for a value, `Toggle` for a switch, `Picker` with `.segmented` style for the serif choice, a `Button` in `TextButtonStyle` for 今すぐ送信, and a destructive `Button` for サインアウト. The on-device section is one `Toggle` with the sentence as its footer, and when the model is unavailable the toggle is replaced by the unavailable sentence as the footer alone.
+- Sign-in and the device code. `StepList` is a `Grid` as today's three steps are, with the filled circle drawn as a `Circle` in `.ink` and the number in `.paper`; the current step is the same and a later step a hairline circle with the text in `.ink2`. `DeviceCodeCard` is a `.paperRaised` card with the hairline stroke and the code in the device-code style, selectable. The buttons are a primary and a secondary across the width, 10 apart, and the two footnotes are `Text` in `.footnote` and `.ink2` with `.multilineTextAlignment(.center)`. The logo is the mark variant: the vase and flowers without the background square, at 132 points, as a new image set made from `vase.svg` and `flowers.svg` under `Nageire/AppIcon.icon/Assets/`, since `AppLogo.imageset` carries the background.
+- The empty state. `ContentUnavailableView` is kept for the structure, with the vase outline as its image, the title in `.title2`, and the two lines in `.subheadline` and `.ink2`.
+- Icons. SF Symbols everywhere, with the names the design reference lists. The vase for the primary action is a custom symbol made in the SF Symbols app from the logo's vase path, exported as a symbol template, and added to the catalog as a symbol image set, so that it scales with the label and takes the label's color.
+- macOS. The window is the same `NavigationSplitView` with `.navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 480)` as today; the sidebar's background is `.paperSunken`, the selected row `.accentWash`, and the note column centers its content at 680 with `.frame(maxWidth: 680)`. The quick-entry panel in phase 4 is 560 by 340 and, if it stays a window of the app, a second `Window` scene opened by a menu bar item and a shortcut. Whether it is a separate process instead is open in ux-redesign.md, and a global shortcut that works while another app is in front needs an event monitor or a helper; both are decided together in phase 4.
+
+## Platform differences
+
+`#if os(macOS)` marks the few places that differ, as today: the search placement, the toolbar placements, the settings window, and the quick-entry panel. iPad follows the size class, not the platform. Nothing else forks.
+
+## Accessibility and the two appearances
+
+- Every icon-only button is made with the `Button(_:systemImage:)` form or carries `.accessibilityLabel`, so VoiceOver reads it.
+- Decorative drawing, the vase outline and the logo, is `.accessibilityHidden(true)`.
+- A tentative title is announced as a suggestion, and the related section's rows as links to notes.
+- Every screen is previewed in both color schemes and at the largest accessibility size with `.environment(\.dynamicTypeSize, .accessibility5)`, and the bottom bar is checked at that size on a device.
+- Contrast is the tokens' and is not retuned per view. A view that looks too faint uses the next token, never an opacity.
+
+## Previews
+
+Every component and screen has a `#Preview` on `SampleData`, a fixture under the app target's Preview Content folder, which the tests reach through `@testable import`, that mirrors the prototype's sample so that a preview can be set beside the render. The notes it holds, newest first:
+
+- Today: "歯医者の予約を変える" (a tentative title; the text is 来週の火曜は稽古と重なる。木曜の午後に電話する。 with two open tasks 受付に電話 and カレンダーを直す; unsent; related to 前回の歯医者 for 同じ歯医者の話 and 稽古の予定 for 同じ火曜の話) and "朝の散歩で見た空の色" (tentative; 雨の前のあの灰色に近い。冬の服の色にしたい。).
+- Yesterday: "稽古の記録 — 投げ入れ" (a heading; the text has bold 枝を二本, a three-item list ending in italic 余白を恐れない, a done task 剣山を洗う and an open one 来週までに枝を探す, an image kuwa.jpg of 1.2 MB, and a link 教室の予定; written 10月3日 9:12, edited 昨日 18:40, sent; related to 稽古の記録 — 瓶花 for 先月の稽古の続き, 庭の金木犀が咲いた for 同じ季節の花の話, and 器を買った日 for 同じ器の話), "読みかけの本のメモ" (三章まで。器は空いているところに意味がある、という一文。), and "夕飯の買い物" (大根 and 油揚げ done, 柚子 open).
+- 10月1日 水曜日: "引っ越しの見積もり" (二社に頼んだ。箱の数を先に数えておくと早い。 with two attachments) and "庭の金木犀が咲いた" (去年より五日早い。窓を開けて書いている。).
+- The draft in the toss sheet: a heading 今週の買い出し, the tasks 花ばさみの研ぎ done and 剣山（小） and 水切り用の新聞 open, and an image ito.jpg of 860 KB.
+- The device code is WDJB-MJHT, the account @hanako, the repository hanako/notes, one note unsent and the last send 今日 9:14.
+
+The same fixture feeds the tests of the display-title rule and of the day grouping.
+
+## The editor, for phase 2
+
+- One `UIViewRepresentable` and one `NSViewRepresentable` over a TextKit 2 text view (`NSTextContentStorage`, `NSTextLayoutManager`) that holds the note's Markdown as its plain text. The string in the view is the string in the file; styling is attributes, never inserted or removed characters.
+- A line parser recognizes what the design reference styles: headings, task items, list items, image lines, and the inline marks for bold, italic, code, and links. On every edit the attributes of the changed paragraphs are recomputed. Marks get `.inkFaint`; headings the scaled sizes; a done task's text `.ink2` with a strikethrough.
+- A task's checkbox and an image's thumbnail are `NSTextAttachment`s drawn by attachment view providers, so they live in the layout and scroll with the text. The thumbnail is cached from the attachment folder of the note.
+- The raw text of an image line and the address part of a link are shown only on the paragraph that holds the selection. Elsewhere they are given a clear color and a zero width through the attributes, so the characters stay in the string and the file. This is the hardest piece of the phase; build the faint-marks editor first, verify it, and add the hiding last.
+- Return inside a list inserts the next marker; Return on an empty item removes the marker. The accessory bar's buttons insert the marks at the selection. Command-B, Command-I, and Command-K do the same on macOS through the Format menu.
+- Saving as typed: the view reports each change to `AppModel`, which writes the device copy at once and sends one commit on close, on selecting another note, on going to the background, or after thirty seconds without typing, as ux-redesign.md decides.
+
+## What a phase leaves behind
+
+At the end of a phase, the renders in `docs/design/` and the screenshots of the build agree, the previews cover the new components, `Localizable.xcstrings` holds every new string in both languages, and `docs/design-reference.md` has been corrected wherever the build taught something the reference had wrong.
