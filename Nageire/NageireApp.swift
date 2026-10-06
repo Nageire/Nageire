@@ -52,19 +52,19 @@ extension NageireApp {
 }
 
 extension FocusedValues {
-    /// Starts a new note in the window that has focus. Nil while that window cannot write one, as on the sign-in screen.
-    @Entry var startNewNote: (() -> Void)?
+    /// Asks the window that has focus for a new note. Nil while that window cannot write one, as on the sign-in screen.
+    @Entry var newNoteRequests: NewNoteRequests?
 }
 
 struct NoteCommands: Commands {
-    @FocusedValue(\.startNewNote) private var startNewNote
+    @FocusedValue(\.newNoteRequests) private var newNoteRequests
 
     var body: some Commands {
         // Command-N is the key for a new note, not for a new window.
         CommandGroup(replacing: .newItem) {
-            Button("New Note") { startNewNote?() }
+            Button("New Note") { newNoteRequests?.request() }
                 .keyboardShortcut("n", modifiers: .command)
-                .disabled(startNewNote == nil)
+                .disabled(newNoteRequests == nil)
         }
     }
 }

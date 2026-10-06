@@ -11,6 +11,16 @@
         }
       }
     },
+    "A draft is waiting" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下書きがあります"
+          }
+        }
+      }
+    },
     "Add or remove repositories on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -87,6 +97,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "リポジトリを選ぶ"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じる"
           }
         }
       }
@@ -256,7 +276,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新規メモ"
+            "value" : "新しいメモ"
           }
         }
       }
@@ -266,7 +286,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新規メモ"
+            "value" : "新しいメモ"
           }
         }
       }
@@ -467,6 +487,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今日"
+          }
+        }
+      }
+    },
+    "Toss in" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "投げ入れる"
           }
         }
       }
