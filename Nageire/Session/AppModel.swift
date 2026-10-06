@@ -9,7 +9,8 @@ final class AppModel {
     let outbox: NoteOutbox
     let library: NoteLibrary
     private let session: GitHubSession
-    private let defaults: UserDefaults
+    /// Where the account and the repository are kept, and what the views keep their own settings in.
+    let defaults: UserDefaults
 
     private(set) var isSignedIn: Bool
     private(set) var accountLogin: String?

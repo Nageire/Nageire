@@ -147,12 +147,7 @@ final class FakeAPI: GitHubAPI {
 }
 
 extension DeviceCode {
-    static let sample = DeviceCode(
-        deviceCode: "device-code",
-        userCode: "WDJB-MJHT",
-        verificationURL: URL(string: "https://github.com/login/device")!,
-        interval: 5
-    )
+    @MainActor static let sample = SampleData.deviceCode
 }
 
 extension TokenGrant {

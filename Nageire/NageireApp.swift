@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct NageireApp: App {
-    @State private var model = AppModel.live()
+    @State private var model = NageireApp.makeModel()
 
     var body: some Scene {
         #if os(macOS)
@@ -11,6 +11,7 @@ struct NageireApp: App {
         Window(Text(verbatim: "Nageire"), id: "main") {
             RootView()
                 .environment(model)
+                .defaultAppStorage(model.defaults)
         }
         .defaultSize(width: 900, height: 600)
         .commands { NoteCommands() }
@@ -18,14 +19,28 @@ struct NageireApp: App {
         Settings {
             SettingsView()
                 .environment(model)
+                .defaultAppStorage(model.defaults)
         }
         #else
         WindowGroup {
             RootView()
                 .environment(model)
+                .defaultAppStorage(model.defaults)
         }
         .commands { NoteCommands() }
         #endif
+    }
+}
+
+extension NageireApp {
+    private static func makeModel() -> AppModel {
+        #if DEBUG
+        // Launched with `-sampleData YES`, the app shows the sample of the design.
+        if UserDefaults.standard.bool(forKey: "sampleData") {
+            return .sample()
+        }
+        #endif
+        return .live()
     }
 }
 
