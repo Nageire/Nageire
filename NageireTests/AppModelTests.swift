@@ -89,7 +89,10 @@ struct AppModelTests {
         #expect(relaunched.repository == nil)
     }
 
-    @Test(.timeLimit(.minutes(1))) func choosingARepositorySendsTheNotesThatWereWaitingForOne() async throws {
+    // The limit ends a wait for a send that never comes. It is not one minute: on a hosted runner the
+    // simulator's services start while the tests run, and they have held the main actor for longer
+    // than that, which failed this test while it was only waiting for its turn.
+    @Test(.timeLimit(.minutes(5))) func choosingARepositorySendsTheNotesThatWereWaitingForOne() async throws {
         let model = model()
         try model.completeSignIn(with: .sample)
         try model.outbox.add(body: "Written before a repository was chosen")
@@ -102,7 +105,7 @@ struct AppModelTests {
         #expect(api.createFileAttempts.map(\.repository) == ["octocat/notes"])
     }
 
-    @Test(.timeLimit(.minutes(1))) func savingANoteKeepsItOnTheDeviceAndSendsItToTheChosenRepository() async throws {
+    @Test(.timeLimit(.minutes(5))) func savingANoteKeepsItOnTheDeviceAndSendsItToTheChosenRepository() async throws {
         let model = model()
         try model.completeSignIn(with: .sample)
         model.select(Repository(owner: "octocat", name: "notes"))

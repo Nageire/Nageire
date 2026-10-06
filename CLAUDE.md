@@ -23,6 +23,8 @@ xcodebuild test -scheme Nageire -destination 'platform=iOS Simulator,name=iPhone
 
 CI runs both on every pull request. A Linux session cannot build the app and is used for documents only.
 
+The tests run inside the app. Started for them, or by Xcode for a preview, the app builds a model that keeps to itself (`AppModel.sample(signedIn: false)`): signed out, in memory, with no Keychain and no network. Otherwise it would start as the app of whoever runs the tests, read their tokens, and send and fetch their notes.
+
 ## Conventions
 
 - Load the `writing-conventions` skill before writing a comment, a test name, a commit message, a pull request, or a document. Its rules on what goes where and on prose apply here.
@@ -33,4 +35,4 @@ CI runs both on every pull request. A Linux session cannot build the app and is 
 
 ## State of the redesign
 
-Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded; building it has not started. The project builds with Xcode 27 in Swift language mode 6 against the iOS 27 and macOS 27 deployment targets, and CI runs on the `xcode-27` runner image, so the step before phase 1 in `docs/workplan.md` is done. Phase 1 is next, as the pull requests named there, in an environment with Xcode. Do not begin a pull request before the one before it is merged.
+Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded. The project builds with Xcode 27 in Swift language mode 6 against the iOS 27 and macOS 27 deployment targets, and CI runs on the `xcode-27` runner image, so the step before phase 1 in `docs/workplan.md` is done. Phase 1 is being built as the pull requests named there, in an environment with Xcode; the merges on `main` show how far it has come. Do not begin a pull request before the one before it is merged.

@@ -31,7 +31,7 @@ A phase is built as several pull requests, each one item of its checklist or a f
 
 ## Verifying against the design
 
-- Run the app on an iPhone 17 simulator and on macOS, in light and in dark, and take screenshots with `xcrun simctl io booted screenshot` and the system's screenshot on macOS.
+- Run the app on an iPhone 17 simulator and on macOS, in light and in dark, and take screenshots with `xcrun simctl io booted screenshot` and the system's screenshot on macOS. Launched with `-sampleData YES`, a debug build shows the sample of the prototype without an account, as ui-guide.md describes: `xcrun simctl launch booted com.yamat47.Nageire -sampleData YES -AppleLanguages "(ja)" -AppleLocale ja_JP`, and the same arguments after `open -n Nageire.app --args` on macOS.
 - Put each screenshot beside its screen in `docs/design/iphone-light.png`, `iphone-dark.png`, `mac-light.png`, and `mac-dark.png`. The two should differ only where the platform draws its own control differently from the web prototype: the keyboard, the glass, the fonts on a device that has Hiragino.
 - Check the measurements against design-reference.md where the eye cannot tell: the gutter, the row padding, the control heights, the radii.
 - Set Dynamic Type to the largest accessibility size once and confirm nothing is clipped and the bottom bar still holds the search field and the button.
