@@ -6,7 +6,6 @@ import Observation
 final class NoteLibrary {
     /// Newest first.
     private(set) var sent: [NoteEntry] = []
-    private(set) var lastRefreshFailed = false
 
     private let store: NoteStore
     private let api: GitHubAPI
@@ -77,7 +76,6 @@ final class NoteLibrary {
         generation += 1
         try? store.removeLibrary()
         sent = []
-        lastRefreshFailed = false
     }
 
     private func bringInLine(with repository: Repository) async {
@@ -117,12 +115,10 @@ final class NoteLibrary {
                 // the fetches is in the store and in the list, and must stay in the list.
                 sent = Self.entries(of: try store.library())
             }
-            lastRefreshFailed = false
         } catch {
             guard generation == self.generation else { return }
             // Files fetched before the failure are on the device; show them.
             sent = Self.entries(of: (try? store.library()) ?? [])
-            lastRefreshFailed = true
         }
     }
 

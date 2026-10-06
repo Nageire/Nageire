@@ -12,7 +12,9 @@ struct StreamView: View {
     /// The text of the note being edited in the detail column. Nil while no note is being edited.
     @State private var editDraft: String?
     @State private var deleteFailed = false
-    #if !os(macOS)
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #else
     @State private var isShowingSettings = false
     #endif
 
@@ -23,6 +25,16 @@ struct StreamView: View {
         let notes = model.notes()
         NavigationSplitView {
             list(of: notes)
+                .background(.surfaceStream)
+                // Above the list and not in it: the refusal has to show over an empty stream too,
+                // which is where a refused deletion leaves it.
+                .safeAreaInset(edge: .top) {
+                    if model.outbox.wasRefused {
+                        RefusedBanner(openSettings: showSettings)
+                            .padding(.horizontal, Spacing.listGutter)
+                            .padding(.top, 8)
+                    }
+                }
                 .navigationTitle(Text(verbatim: "Nageire"))
                 #if os(macOS)
                 // The toolbar's own search field takes so much room that the new-note button
@@ -32,11 +44,10 @@ struct StreamView: View {
                 .searchable(text: $query)
                 #endif
                 .refreshable { await model.syncNotes() }
-                .safeAreaInset(edge: .bottom) { status }
                 .toolbar {
                     #if !os(macOS)
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Settings", systemImage: "gearshape") { isShowingSettings = true }
+                        Button("Settings", systemImage: "gearshape", action: showSettings)
                     }
                     #endif
                     if !isWide {
@@ -115,18 +126,37 @@ struct StreamView: View {
     private func list(of all: [NoteEntry]) -> some View {
         let notes = all.matching(query)
         if !notes.isEmpty {
-            List(notes, selection: $selection) { note in
-                NoteRow(note: note)
-                    .swipeActions {
-                        // Without the destructive role: that role takes the row away at once,
-                        // before the confirmation is answered.
-                        Button("Delete", systemImage: "trash") { noteToDelete = note }
-                            .tint(.red)
+            // One flat list of rows, so that the list can tell its rows apart by their ids alone.
+            // The day's heading is a row and not a section header, which the two platforms
+            // inset differently from the rows under it.
+            List(selection: $selection) {
+                ForEach(StreamRow.rows(of: notes)) { row in
+                    switch row {
+                    case .heading(let group):
+                        DayHeader(label: group.label())
+                            .listRowInsets(.streamHeader)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .selectionDisabled()
+                    case .note(let note):
+                        NoteRow(note: note)
+                            .listRowInsets(.stream)
+                            .listRowSeparatorTint(.hairline)
+                            .listRowBackground(rowBackground(for: note))
+                            .swipeActions {
+                                // Without the destructive role: that role takes the row away at once,
+                                // before the confirmation is answered.
+                                Button("Delete", systemImage: "trash") { noteToDelete = note }
+                                    .tint(.red)
+                            }
+                            .contextMenu {
+                                Button("Delete", systemImage: "trash", role: .destructive) { noteToDelete = note }
+                            }
                     }
-                    .contextMenu {
-                        Button("Delete", systemImage: "trash", role: .destructive) { noteToDelete = note }
-                    }
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             #if os(macOS)
             .onDeleteCommand { noteToDelete = notes.first { $0.id == selection } }
             #endif
@@ -134,31 +164,25 @@ struct StreamView: View {
             // another note there would discard the edit without a word.
             .disabled(editDraft != nil)
         } else if query.isEmpty {
-            ContentUnavailableView {
-                Label("No notes yet", systemImage: "square.and.pencil")
-            } actions: {
-                // A wide window already shows the text field next to this.
-                if !isWide {
-                    Button("Write a note", action: startNewNote)
-                        .buttonStyle(.borderedProminent)
-                }
-            }
+            EmptyState()
         } else {
             ContentUnavailableView.search(text: query)
         }
     }
 
-    private var status: some View {
-        Group {
-            if model.outbox.wasRefused {
-                Label("Can't write to the repository. Check it in Settings.", systemImage: "exclamationmark.triangle")
-            } else if model.library.lastRefreshFailed {
-                Text("Could not load notes from GitHub.")
-            }
-        }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .padding(8)
+    /// The selected row on macOS is a wash of the accent; the system's highlight would be the accent itself.
+    private func rowBackground(for note: NoteEntry) -> some View {
+        RoundedRectangle(cornerRadius: Radius.input)
+            .fill(selection == note.id ? Color.accentWash : .clear)
+            .padding(.horizontal, 8)
+    }
+
+    private func showSettings() {
+        #if os(macOS)
+        openSettings()
+        #else
+        isShowingSettings = true
+        #endif
     }
 
     /// Nil while the settings sheet covers the list or a note is being edited, which disables the menu command instead of opening a sheet under a sheet.
@@ -183,25 +207,19 @@ struct StreamView: View {
     }
 }
 
-private struct NoteRow: View {
-    let note: NoteEntry
+/// What the stream lists: a heading for each day, then that day's notes.
+private enum StreamRow: Identifiable {
+    case heading(DayGroup)
+    case note(NoteEntry)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Blank lines are skipped so that the three lines shown all carry text.
-            Text(verbatim: note.body.split(separator: "\n").filter { !$0.allSatisfy(\.isWhitespace) }.prefix(3).joined(separator: "\n"))
-                .lineLimit(3)
-            HStack(spacing: 8) {
-                if let createdAt = note.createdAt {
-                    Text(createdAt, format: NoteEntry.dateFormat)
-                }
-                if note.isPending {
-                    Label("Unsent", systemImage: "arrow.up.circle")
-                }
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+    var id: String {
+        switch self {
+        case .heading(let group): group.day.map { "day-\($0.timeIntervalSinceReferenceDate)" } ?? "undated"
+        case .note(let note): note.id
         }
-        .padding(.vertical, 2)
+    }
+
+    static func rows(of notes: [NoteEntry]) -> [StreamRow] {
+        notes.groupedByDay().flatMap { [.heading($0)] + $0.notes.map(StreamRow.note) }
     }
 }

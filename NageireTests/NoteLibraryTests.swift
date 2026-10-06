@@ -22,7 +22,6 @@ struct NoteLibraryTests {
 
         #expect(library.notes().map(\.body) == ["November", "October"])
         #expect(library.notes().allSatisfy { !$0.isPending })
-        #expect(!library.lastRefreshFailed)
     }
 
     @Test func aSecondRefreshFetchesOnlyWhatChanged() async {
@@ -48,7 +47,7 @@ struct NoteLibraryTests {
         #expect(library.notes().map(\.body) == ["November"])
     }
 
-    @Test func aFailedRefreshKeepsTheNotesAlreadyOnTheDeviceAndIsFlaggedUntilOneSucceeds() async {
+    @Test func aFailedRefreshKeepsTheNotesAlreadyOnTheDevice() async {
         api.remoteNotes = .success([october: "October\n"])
         let library = library()
         await library.refresh(from: repository)
@@ -57,12 +56,6 @@ struct NoteLibraryTests {
         await library.refresh(from: repository)
 
         #expect(library.notes().map(\.body) == ["October"])
-        #expect(library.lastRefreshFailed)
-
-        api.remoteNotes = .success([october: "October\n"])
-        await library.refresh(from: repository)
-
-        #expect(!library.lastRefreshFailed)
     }
 
     @Test func notesAlreadyOnTheDeviceAreListedBeforeAnyRefresh() throws {
