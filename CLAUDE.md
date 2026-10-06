@@ -26,11 +26,11 @@ CI runs both on every pull request. A Linux session cannot build the app and is 
 ## Conventions
 
 - Load the `writing-conventions` skill before writing a comment, a test name, a commit message, a pull request, or a document. Its rules on what goes where and on prose apply here.
-- The `swift-idioms` and `swift-concurrency` skills under `.claude/skills` apply while writing Swift, `test-audit` while writing tests, and `github-actions-workflows` while touching `.github`. The two Swift skills were checked against Swift 6.4, which Xcode 27 carries, and prefer language mode 6; the project is in mode 5 until the migration named in `docs/workplan.md`, so a rule that needs mode 6 waits for it.
+- The `swift-idioms` and `swift-concurrency` skills under `.claude/skills` apply while writing Swift, `test-audit` while writing tests, and `github-actions-workflows` while touching `.github`. The two Swift skills were checked against Swift 6.4, which Xcode 27 carries. The app target is in language mode 6 with the main actor as the default isolation and approachable concurrency, the configuration they prefer for an app. The test target is in mode 6 with approachable concurrency and no default isolation, so a suite or a test double is marked `@MainActor`.
 - Structural and behavioral changes go in separate commits. No trailer or footer in a commit or pull request says a model took part.
 - A pull request body has three sections, Background, Not done, and Where to look, and nothing else. The `create-pr` skill produces it.
 - A decision recorded in `docs/concept.md` or `docs/ux-redesign.md` is built, not reopened. A new decision is proposed in the document first and built after.
 
 ## State of the redesign
 
-Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded; building it has not started. The project builds with Xcode 27 against the iOS 27 and macOS 27 deployment targets, and CI runs on the `xcode-27` runner image. It is still in Swift language mode 5; moving it to mode 6 is what is left of the step before phase 1 in `docs/workplan.md`. Then phase 1, as the pull requests named there, in an environment with Xcode. Do not begin a pull request before the one before it is merged.
+Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded; building it has not started. The project builds with Xcode 27 in Swift language mode 6 against the iOS 27 and macOS 27 deployment targets, and CI runs on the `xcode-27` runner image, so the step before phase 1 in `docs/workplan.md` is done. Phase 1 is next, as the pull requests named there, in an environment with Xcode. Do not begin a pull request before the one before it is merged.
