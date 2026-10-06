@@ -21,4 +21,4 @@ Nageire is at the sixth step of its roadmap. You can sign in with GitHub, choose
 
 ## Building
 
-Open `Nageire.xcodeproj` in Xcode 27 and run the `Nageire` scheme on an iPhone simulator or on the Mac. The tests run from the same scheme.
+Open `Nageire.xcodeproj` in Xcode 27 and run the `Nageire` scheme on an iPhone simulator or on the Mac. The app needs iOS 27 or macOS 27. The tests run from the same scheme.
