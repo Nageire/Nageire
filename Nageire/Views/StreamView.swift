@@ -7,7 +7,8 @@ struct StreamView: View {
     @State private var query = ""
     @State private var selection: NoteEntry.ID?
     @State private var isComposingInSheet = false
-    @State private var newNoteRequests = 0
+    @State private var newNoteRequests = NewNoteRequests()
+    @AppStorage(AppModel.Keys.draft) private var draft = ""
     @State private var noteToDelete: NoteEntry?
     /// The text of the note being edited in the detail column. Nil while no note is being edited.
     @State private var editDraft: String?
@@ -45,33 +46,42 @@ struct StreamView: View {
                 #endif
                 .refreshable { await model.syncNotes() }
                 .toolbar {
-                    #if !os(macOS)
-                    ToolbarItem(placement: .cancellationAction) {
+                    #if os(macOS)
+                    if !isWide {
+                        ToolbarItem(placement: .primaryAction) { TossButton(requests: newNoteRequests, isEnabled: canStartNewNote) }
+                    }
+                    #else
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button("Settings", systemImage: "gearshape", action: showSettings)
                     }
-                    #endif
+                    // The bottom bar: the search field and the toss button in one glass group, within
+                    // reach of the thumb. In a wide window the button belongs to the detail column.
                     if !isWide {
-                        ToolbarItem(placement: .primaryAction) { newNoteButton }
+                        DefaultToolbarItem(kind: .search, placement: .bottomBar)
+                        ToolbarSpacer(.flexible, placement: .bottomBar)
+                        ToolbarItem(placement: .bottomBar) { TossButton(requests: newNoteRequests, isEnabled: canStartNewNote) }
                     }
+                    #endif
                 }
                 .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 480)
         } detail: {
-            Group {
-                if let selection, let note = notes.first(where: { $0.id == selection }) {
-                    NoteDetailView(note: note, draft: $editDraft) { noteToDelete = note }
-                } else if isWide {
-                    ComposeView(focusRequest: newNoteRequests)
-                }
-            }
-            .toolbar {
-                // In a wide window the button belongs to the detail column: the sidebar's
-                // share of the toolbar is too narrow for it and drops it into the overflow menu.
-                if isWide {
-                    ToolbarItem(placement: .primaryAction) { newNoteButton }
-                }
+            if let selection, let note = notes.first(where: { $0.id == selection }) {
+                NoteDetailView(note: note, draft: $editDraft) { noteToDelete = note }
+                    .toolbar {
+                        // In a wide window the button belongs to the detail column: the sidebar's
+                        // share of the toolbar is too narrow for it and drops it into the overflow menu.
+                        // It goes with the note: while the column is the toss screen itself, that
+                        // screen's own button is the one to press.
+                        if isWide {
+                            ToolbarItem(placement: .primaryAction) { TossButton(requests: newNoteRequests, isEnabled: canStartNewNote) }
+                        }
+                    }
+            } else if isWide {
+                TossSheet(focusRequest: newNoteRequests.count)
             }
         }
-        .focusedSceneValue(\.startNewNote, newNoteCommand)
+        .focusedSceneValue(\.newNoteRequests, canStartNewNote ? newNoteRequests : nil)
+        .onChange(of: newNoteRequests.count) { startNewNote() }
         .task(id: scenePhase) {
             if scenePhase == .active {
                 await model.syncNotes()
@@ -86,13 +96,9 @@ struct StreamView: View {
         }
         .sheet(isPresented: $isComposingInSheet) {
             NavigationStack {
-                ComposeView(focusRequest: newNoteRequests) { isComposingInSheet = false }
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel", role: .cancel) { isComposingInSheet = false }
-                        }
-                    }
+                TossSheet(focusRequest: newNoteRequests.count)
             }
+            .presentationDragIndicator(.visible)
         }
         #if !os(macOS)
         .sheet(isPresented: $isShowingSettings) { SettingsView() }
@@ -125,11 +131,18 @@ struct StreamView: View {
     @ViewBuilder
     private func list(of all: [NoteEntry]) -> some View {
         let notes = all.matching(query)
-        if !notes.isEmpty {
+        if !notes.isEmpty || (!draft.isEmpty && query.isEmpty) {
             // One flat list of rows, so that the list can tell its rows apart by their ids alone.
             // The day's heading is a row and not a section header, which the two platforms
             // inset differently from the rows under it.
             List(selection: $selection) {
+                if !draft.isEmpty, query.isEmpty {
+                    DraftRow(text: draft) { newNoteRequests.request() }
+                        .listRowInsets(.stream)
+                        .listRowSeparatorTint(.hairline)
+                        .listRowBackground(Color.clear)
+                        .selectionDisabled()
+                }
                 ForEach(StreamRow.rows(of: notes)) { row in
                     switch row {
                     case .heading(let group):
@@ -185,25 +198,47 @@ struct StreamView: View {
         #endif
     }
 
-    /// Nil while the settings sheet covers the list or a note is being edited, which disables the menu command instead of opening a sheet under a sheet.
-    private var newNoteCommand: (() -> Void)? {
+    /// False while the settings sheet covers the list or a note is being edited, which disables the menu command instead of opening a sheet under a sheet.
+    private var canStartNewNote: Bool {
         #if !os(macOS)
-        if isShowingSettings { return nil }
+        if isShowingSettings { return false }
         #endif
-        if editDraft != nil { return nil }
-        return startNewNote
-    }
-
-    private var newNoteButton: some View {
-        Button("New note", systemImage: "square.and.pencil", action: startNewNote)
-            .disabled(editDraft != nil)
+        return editDraft == nil
     }
 
     private func startNewNote() {
         // With no note selected, the detail column of a wide window is the text field.
         selection = nil
         isComposingInSheet = !isWide
-        newNoteRequests += 1
+    }
+}
+
+/// The button for a new note: the vase alone, as the compose button of the system's apps is an icon alone.
+private struct TossButton: View {
+    let requests: NewNoteRequests
+    let isEnabled: Bool
+
+    var body: some View {
+        Button { requests.request() } label: {
+            VaseGlyph()
+                .padding(.horizontal, 2)
+        }
+        .buttonStyle(.glassProminent)
+        .disabled(!isEnabled)
+        .accessibilityLabel(Text("New note"))
+        .help(Text("New note"))
+    }
+}
+
+/// Counts the times a new note was asked for in a window. The stream opens the sheet or the
+/// detail column at each, and the command menu reaches it through the focused scene. A class,
+/// so that the focused value compares by identity; a closure there could not be compared at all.
+@Observable
+final class NewNoteRequests {
+    private(set) var count = 0
+
+    func request() {
+        count += 1
     }
 }
 

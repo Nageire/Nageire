@@ -91,6 +91,16 @@
         }
       }
     },
+    "Close" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "閉じる"
+          }
+        }
+      }
+    },
     "Copied" : {
       "localizations" : {
         "ja" : {
@@ -157,6 +167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完了"
+          }
+        }
+      }
+    },
+    "Draft" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書きかけ"
           }
         }
       }
@@ -256,7 +276,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新規メモ"
+            "value" : "新しいメモ"
           }
         }
       }
@@ -266,7 +286,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新規メモ"
+            "value" : "新しいメモ"
           }
         }
       }

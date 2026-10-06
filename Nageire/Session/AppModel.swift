@@ -111,9 +111,12 @@ final class AppModel {
         defaults.removeObject(forKey: Keys.repository)
     }
 
-    private enum Keys {
+    /// The keys in `defaults`, the model's and the views'.
+    enum Keys {
         static let accountLogin = "accountLogin"
         static let repository = "repository"
+        /// The text of a new note not yet tossed, kept so that it survives a relaunch.
+        static let draft = "draft"
     }
 }
 

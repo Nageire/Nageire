@@ -33,7 +33,7 @@ WYSIWYG was considered and turned down. A rich-text model has to be converted to
 
 ## Saving and commits
 
-A new note keeps its button. The draft is saved on the device on every change and survives closing the sheet and relaunching the app; "投げ入れる" sends it as one commit, as today. The toss is a gesture with an end, and a gesture with an end deserves a button.
+A new note keeps its button. The draft is saved on the device on every change and survives closing the sheet and relaunching the app; "完了" sends it as one commit, as today. The toss is a gesture with an end, and a gesture with an end deserves a button.
 
 An existing note has no Edit, Save, or Cancel. Changes are saved on the device as they are typed, and one commit is sent when the note is closed, when another note is selected, when the app goes to the background, or after thirty seconds without typing, whichever comes first. A note held open for an hour of writing gets a handful of commits, not hundreds. The Edit mode exists today to protect an edit from being discarded by navigating away; saving as typed removes the thing it protects against. The conflict rule from concept.md stays: the change that arrives last wins.
 
@@ -83,8 +83,8 @@ Motion is one gesture. When a note is tossed, the sheet goes down and the new ro
 
 On iPhone the app opens on the stream: every note, newest first, grouped by day under "今日", "昨日", and then the date with its weekday. A row shows the display title, up to two lines of excerpt, the time, the number of attachments, and whether the note is still unsent.
 
-- A bar at the bottom holds the search field and the "投げ入れる" button. iOS 26 puts search at the bottom, and the thumb reaches both.
-- "投げ入れる" opens a sheet. Closing the sheet keeps the draft, and the button carries a mark while a draft is waiting.
+- A bar at the bottom holds the search field and the button for a new note, which is the vase alone, as the compose button of Apple's Notes is an icon alone in the same bar. iOS 26 puts search at the bottom, and the thumb reaches both.
+- The button opens a sheet. Closing the sheet keeps the draft, and while a draft is waiting the stream shows it as a quiet row at its top, "書きかけ" with the first line of the text, which opens the sheet too. The button itself says nothing of it.
 - A row opens the note full screen, where reading and editing are the same surface. Back returns to the stream. On the right are Share and a menu with "GitHub で開く" and "削除".
 - Settings sit behind the account button at the top right.
 - Search filters the stream as the query is typed, and a day header stays above its matches.
@@ -122,13 +122,15 @@ Deleting a note, by swipe or from the menu, removes the row at once and shows "�
 
 | English | Japanese | Where |
 | --- | --- | --- |
-| Toss in | 投げ入れる | The primary action for a new note, in place of Save. |
+| New note | 新しいメモ | What VoiceOver and the tooltip call the vase button, and the menu command. |
+| Done | 完了 | The sheet's action: the note is kept and sent, as Apple's Journal ends an entry. The close button keeps the draft instead. |
+| Draft | 書きかけ | The row at the top of the stream while a draft waits. |
 | New note | 新しいメモ | The sheet's label. |
 | Unsent, Sent | 未送信, 送信済み | The row and the note header. |
 | Look back | 振り返る | The reflection entry, when it ships. |
 | Note | メモ | Everywhere. Not ノート. |
 
-The voice is plain and short. The app does not congratulate and uses no exclamation marks.
+The voice is plain and short. The app does not congratulate and uses no exclamation marks. The buttons borrow the system's words and shapes. "投げ入れる" was the primary action at first, on the button that opens the sheet and on the one that sends the note, and was turned down: the same word in both places left it unclear which of the two makes a note, and a word of the app's own on a button reads as the app admiring itself. The name and the tagline keep the image.
 
 ## What changes in the files
 

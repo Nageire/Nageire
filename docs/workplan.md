@@ -70,12 +70,12 @@ The words of item 11 go in with the screen that shows them.
 3. Rebuild the stream: a plain list with a section per day (今日, 昨日, then the date with its weekday), the new row with the display title, two lines of excerpt, and the meta line; the display title rule from ux-redesign.md (an `# ` first line, else the first line cut at its first sentence or forty characters).
 4. Put the search field and the primary button into the bottom bar on iPhone. Keep search in the sidebar on macOS.
 5. Replace the list's footer with the unsent mark on each row and the banner above the list for a refused write only.
-6. Rebuild the toss sheet with its header (close, timestamp, 投げ入れる), keeping the existing draft behavior and the plain text view. It has no accessory bar in this phase, so the comparison against the toss-sheet render stops at the editor.
+6. Rebuild the toss sheet with its header (close, timestamp, the save button), keeping the existing draft behavior and the plain text view. It has no accessory bar in this phase, so the comparison against the toss-sheet render stops at the editor.
 7. Rebuild the note screen as one surface with the header line, the share and menu buttons, and the menu holding GitHub で開く and 削除. Editing stays as it is in this phase, with the plain text view, so that the phase does not wait for the editor.
 8. Restructure Settings into the groups of the design, including the sync group with 今すぐ送信, the 書く group with the serif choice, and the on-device group in its unavailable state, the sentence alone with no switch, since the model is not wired until phase 5. Leave 振り返る as 準備中.
 9. Replace the deletion confirmation with the undo bar: the row leaves at once, the bar stays ten seconds and waits while the app is not in front, the deletion is queued when it goes, and `UndoManager` handles Command-Z and the shake.
 10. Rebuild sign-in and the device-code screen with the step list, the code card, the two footnotes, and the primary and secondary buttons in the design's order. Replace the logo image with the mark.
-11. Put in the words: 投げ入れる for the primary action, 新しいメモ, 未送信, 送信済み. Both languages in `Localizable.xcstrings`.
+11. Put in the words: 完了 for the sheet's action, 書きかけ for the draft's row, 新しいメモ, 未送信, 送信済み. Both languages in `Localizable.xcstrings`.
 12. Verify every screen as above, then the pull request.
 
 ## Phase 2: the editor (`feature/redesign-editor`)

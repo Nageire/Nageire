@@ -152,9 +152,9 @@ private struct Floating<Fill: ShapeStyle>: ShapeStyle {
         Button { } label: { Label { Text(verbatim: "コードをコピー") } icon: { Image(systemName: "doc.on.doc") }.frame(maxWidth: .infinity) }
             .buttonStyle(.secondary)
         HStack(spacing: 16) {
-            Button { } label: { Text(verbatim: "投げ入れる") }
+            Button { } label: { Text(verbatim: "完了") }
                 .buttonStyle(.primary(compact: true))
-            Button { } label: { Text(verbatim: "投げ入れる") }
+            Button { } label: { Text(verbatim: "完了") }
                 .buttonStyle(.primary(compact: true))
                 .disabled(true)
             Button { } label: { Text(verbatim: "元に戻す") }
