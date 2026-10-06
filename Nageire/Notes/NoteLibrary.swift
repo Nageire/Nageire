@@ -99,9 +99,7 @@ final class NoteLibrary {
                 var waiting = changed[...]
                 func startNext() {
                     guard let file = waiting.popFirst() else { return }
-                    group.addTask { @MainActor in
-                        StoredFile(path: file.path, contents: try await self.api.blob(file.sha, in: repository))
-                    }
+                    group.addTask { try await self.fetch(file, from: repository) }
                 }
                 for _ in 0..<6 { startNext() }
                 while let file = try await group.next() {
@@ -126,6 +124,13 @@ final class NoteLibrary {
             sent = Self.entries(of: (try? store.library()) ?? [])
             lastRefreshFailed = true
         }
+    }
+
+    /// A method and not the body of the task's closure: written there under `@MainActor in`, it stops
+    /// Swift 6.4 in language mode 6 with "pattern that the region-based isolation checker does not
+    /// understand how to check". It can move back into the closure once the compiler takes that.
+    private func fetch(_ file: RemoteFile, from repository: Repository) async throws -> StoredFile {
+        StoredFile(path: file.path, contents: try await api.blob(file.sha, in: repository))
     }
 
     private func list(path: String, contents: String) {
