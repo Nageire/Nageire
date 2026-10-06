@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct NoteListView: View {
+struct StreamView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
