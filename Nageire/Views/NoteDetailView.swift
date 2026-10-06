@@ -7,16 +7,14 @@ struct NoteDetailView: View {
     let onDelete: () -> Void
 
     @Environment(AppModel.self) private var model
+    @State private var saveFailed = false
 
     var body: some View {
         Group {
             if let draft {
-                NoteEditor(text: Binding { draft } set: { self.draft = $0 }) {
-                    try model.editNote(note, text: draft)
-                    self.draft = nil
-                }
-                // The note can leave the list under the edit, deleted on another device.
-                .onDisappear { self.draft = nil }
+                NoteEditor(text: Binding { draft } set: { self.draft = $0 })
+                    // The note can leave the list under the edit, deleted on another device.
+                    .onDisappear { self.draft = nil }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
@@ -37,10 +35,23 @@ struct NoteDetailView: View {
         .toolbarTitleDisplayMode(.inline)
         // In a narrow window the back button would leave the note with the edit neither saved nor cancelled.
         .navigationBarBackButtonHidden(draft != nil)
+        .saveFailureAlert(isPresented: $saveFailed)
         .toolbar {
-            if draft != nil {
+            if let draft {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { draft = nil }
+                    Button("Cancel", role: .cancel) { self.draft = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            try model.editNote(note, text: draft)
+                            self.draft = nil
+                        } catch {
+                            saveFailed = true
+                        }
+                    }
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(draft.allSatisfy(\.isWhitespace))
                 }
             } else {
                 ToolbarItemGroup(placement: .primaryAction) {

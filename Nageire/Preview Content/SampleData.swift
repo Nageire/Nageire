@@ -139,6 +139,9 @@ extension AppModel {
         }
         // What an earlier run left there would make this one start differently.
         defaults.removePersistentDomain(forName: suite)
+        if scene == .stream {
+            defaults.set(SampleData.draft, forKey: AppModel.Keys.draft)
+        }
         let model = AppModel(
             configuration: GitHubAppConfiguration(clientID: "sample", slug: "nageire"),
             oauth: oauth,
