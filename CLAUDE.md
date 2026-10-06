@@ -23,7 +23,7 @@ xcodebuild test -scheme Nageire -destination 'platform=iOS Simulator,name=iPhone
 
 CI runs both on every pull request. A Linux session cannot build the app and is used for documents only.
 
-The tests run inside the app. Started for them, or by Xcode for a preview, the app builds a model that keeps to itself (`AppModel.sample(signedIn: false)`): signed out, in memory, with no Keychain and no network. Otherwise it would start as the app of whoever runs the tests, read their tokens, and send and fetch their notes.
+The tests run inside the app. Started for them, or by Xcode for a preview, the app builds a model that keeps to itself (`AppModel.sample(.signedOut)`): signed out, in memory, with no Keychain and no network. Otherwise it would start as the app of whoever runs the tests, read their tokens, and send and fetch their notes.
 
 ## Conventions
 

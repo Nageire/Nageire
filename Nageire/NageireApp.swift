@@ -40,11 +40,11 @@ extension NageireApp {
         // Xcode sets a variable for each of the two.
         let environment = ProcessInfo.processInfo.environment
         if environment["XCTestConfigurationFilePath"] != nil || environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-            return .sample(signedIn: false)
+            return .sample(.signedOut)
         }
-        // Launched with `-sampleData YES`, the app shows the sample of the design.
-        if UserDefaults.standard.bool(forKey: "sampleData") {
-            return .sample()
+        // Launched with `-sampleData stream`, the app shows the sample of the design in that scene.
+        if let scene = UserDefaults.standard.string(forKey: "sampleData").flatMap(SampleScene.init) {
+            return .sample(scene)
         }
         #endif
         return .live()
