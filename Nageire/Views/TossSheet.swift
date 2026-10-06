@@ -33,9 +33,7 @@ struct TossSheet: View {
                         .foregroundStyle(.ink2)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(action: toss) {
-                        Label { Text("Toss in") } icon: { VaseGlyph(isCompact: true) }
-                    }
+                    Button("Done", action: toss)
                     .buttonStyle(.primary(compact: true))
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(draft.allSatisfy(\.isWhitespace))

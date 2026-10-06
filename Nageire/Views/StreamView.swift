@@ -8,6 +8,7 @@ struct StreamView: View {
     @State private var selection: NoteEntry.ID?
     @State private var isComposingInSheet = false
     @State private var newNoteRequests = NewNoteRequests()
+    @AppStorage(AppModel.Keys.draft) private var draft = ""
     @State private var noteToDelete: NoteEntry?
     /// The text of the note being edited in the detail column. Nil while no note is being edited.
     @State private var editDraft: String?
@@ -130,11 +131,18 @@ struct StreamView: View {
     @ViewBuilder
     private func list(of all: [NoteEntry]) -> some View {
         let notes = all.matching(query)
-        if !notes.isEmpty {
+        if !notes.isEmpty || (!draft.isEmpty && query.isEmpty) {
             // One flat list of rows, so that the list can tell its rows apart by their ids alone.
             // The day's heading is a row and not a section header, which the two platforms
             // inset differently from the rows under it.
             List(selection: $selection) {
+                if !draft.isEmpty, query.isEmpty {
+                    DraftRow(text: draft) { newNoteRequests.request() }
+                        .listRowInsets(.stream)
+                        .listRowSeparatorTint(.hairline)
+                        .listRowBackground(Color.clear)
+                        .selectionDisabled()
+                }
                 ForEach(StreamRow.rows(of: notes)) { row in
                     switch row {
                     case .heading(let group):
@@ -205,36 +213,20 @@ struct StreamView: View {
     }
 }
 
-/// The button for a new note. A view of its own, so that the draft it watches for its dot
-/// invalidates the button and not the stream around it at every keystroke in the sheet.
+/// The button for a new note: the vase alone, as the compose button of the system's apps is an icon alone.
 private struct TossButton: View {
     let requests: NewNoteRequests
     let isEnabled: Bool
 
-    @AppStorage(AppModel.Keys.draft) private var draft = ""
-
     var body: some View {
         Button { requests.request() } label: {
-            // Not a Label: in the bottom bar the system would keep the glyph and drop the word.
-            HStack(spacing: 6) {
-                VaseGlyph()
-                Text("Toss in")
-            }
-            .font(.body.weight(.semibold))
-            .padding(.horizontal, 4)
+            VaseGlyph()
+                .padding(.horizontal, 2)
         }
         .buttonStyle(.glassProminent)
         .disabled(!isEnabled)
-        // A draft is waiting in the sheet.
-        .overlay(alignment: .topTrailing) {
-            if !draft.isEmpty {
-                Circle()
-                    .fill(.onAccent)
-                    .frame(width: 8, height: 8)
-                    .offset(x: 2, y: -2)
-            }
-        }
-        .accessibilityValue(draft.isEmpty ? Text(verbatim: "") : Text("A draft is waiting"))
+        .accessibilityLabel(Text("New note"))
+        .help(Text("New note"))
     }
 }
 
