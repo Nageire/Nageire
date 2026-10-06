@@ -19,12 +19,15 @@ The app needs Xcode 27 on macOS to build and test, which in turn needs macOS 26.
 
 ## How a phase is done
 
-1. Branch from `main` as `feature/<name>`, one branch per phase. The phases below name their branches.
+A phase is built as several pull requests, each one item of its checklist or a few items that touch the same screen. A small pull request is read in one sitting, and a failure in CI is found before anything is built on top of it. The heading of a phase names the branch of its last pull request, and the phase lists the others once they are planned.
+
+1. Branch from `main` as `feature/<name>`, one branch per pull request, after the pull request before it is merged.
 2. Keep structural changes (renames, moves, extractions) in their own commits, before the behavioral ones. A commit subject is around fifty characters in the imperative, the body holds the why, and nothing in the message says a model took part.
 3. Build the phase in the order its checklist gives, and run the tests on macOS and on the iOS simulator before every push: `xcodebuild test -scheme Nageire -destination 'platform=macOS'` and the same with `'platform=iOS Simulator,name=iPhone 17'`. CI runs both on every pull request.
-4. Verify the screens the phase touches against the design (below) before opening the pull request.
-5. Open one pull request per phase. Its body has three sections, as the earlier ones do: Background, Not done, and Where to look. The `create-pr` skill produces it.
-6. When the phase merges, update the Status paragraph of the README, move the decisions the phase settled from ux-redesign.md into concept.md, and strike nothing from ux-redesign.md: it stays the record of why.
+4. Review the branch before anyone else does, with the `simplify` and `review-pr` skills, and fix what they find.
+5. Verify the screens the pull request touches against the design (below).
+6. Open the pull request. Its body has three sections, as the earlier ones do: Background, Not done, and Where to look. The `create-pr` skill produces it, and the review that skill would run is the one of step 4, not a second one.
+7. The last pull request of a phase updates the Status paragraph of the README and moves the decisions the phase settled from ux-redesign.md into concept.md. It strikes nothing from ux-redesign.md: it stays the record of why.
 
 ## Verifying against the design
 
@@ -37,17 +40,30 @@ The app needs Xcode 27 on macOS to build and test, which in turn needs macOS 26.
 
 ## Before phase 1: move the project to Xcode 27 (`feature/xcode-27`)
 
-The project was last built with Xcode 26. Xcode 27 shipped on September 14, 2026 with the iOS 27 and macOS 27 SDKs and needs macOS 26.6 on Apple silicon (Apple's [Xcode release notes](https://developer.apple.com/documentation/xcode-release-notes)), and GitHub's hosted runners now carry one image per Xcode version instead of per macOS version. This step is its own pull request, before any screen changes, so that a build failure from the tools is never mixed with one from the redesign.
+The project was last built with Xcode 26. Xcode 27 shipped on September 14, 2026 with the iOS 27 and macOS 27 SDKs and needs macOS 26.6 on Apple silicon (Apple's [Xcode release notes](https://developer.apple.com/documentation/xcode-release-notes)), and GitHub's hosted runners now carry one image per Xcode version instead of per macOS version. This step is two pull requests, the tools and then the language mode, before any screen changes, so that a build failure from the tools is never mixed with one from the redesign.
 
-1. Open the project in Xcode 27, accept the project changes it proposes, and run the tests on macOS and on an iPhone simulator. Fix what the new SDKs flag before anything else.
+1. Open the project in Xcode 27, accept the project changes it proposes, and run the tests on macOS and on an iPhone simulator. Fix what the new SDKs flag before anything else. One warning waits: the closure in the focused value that carries the command for a new note. Replacing it changes how Command-N reaches the list, which no test covers, and that command is rebuilt with the toss sheet in phase 1.
 2. The rule in concept.md is that the minimum OS is the current release, which is now iOS 27 and macOS 27. Raise both deployment targets to 27 and change the numbers in concept.md and the README's Building paragraph, or, if 26 is kept so that devices left on it are not excluded, record that decision in concept.md in place of the rule. Either way the document and the project must agree.
 3. In `.github/workflows/test.yml`, change `runs-on: macos-26` to the `xcode-27` label, which runs on macOS 27 on arm64 runners and was in public preview as of September 2026 (GitHub's changelog of [July 16](https://github.blog/changelog/2026-07-16-xcode-27-runner-image-now-in-public-preview) and [September 10, 2026](https://github.blog/changelog/2026-09-10-xcode-27-runner-image-now-runs-on-macos-27)). Keep the `iPhone 17` destination if that image has the simulator, otherwise use the current iPhone it has, and change the same name in CLAUDE.md and in this document.
-4. Every configuration in `Nageire.xcodeproj` sets `SWIFT_VERSION = 5.0`, and the Swift skills under `.claude/skills`, which came in with pull request #13, were checked against Swift 6.4 and prefer language mode 6. Move to mode 6 in this step or in a second pull request right after it, before phase 1 writes new Swift: turn the mode on, fix what the compiler flags, and record the mode in CLAUDE.md. If mode 5 is kept for now, record that instead, so that the skills' mode-6 rules are read as later rather than as broken.
+4. Every configuration in `Nageire.xcodeproj` sets `SWIFT_VERSION = 5.0`, and the Swift skills under `.claude/skills`, which came in with pull request #13, were checked against Swift 6.4 and prefer language mode 6. Move to mode 6 in a second pull request right after this one (`feature/swift-6`), before phase 1 writes new Swift: turn the mode on, fix what the compiler flags, and record the mode in CLAUDE.md. If mode 5 is kept for now, record that instead, so that the skills' mode-6 rules are read as later rather than as broken.
 5. Note in the pull request which Xcode build and which runner image version ran the tests.
 
 ## Phase 1: the look (`feature/redesign-look`)
 
 The phase changes no file format and no API call. It ships on its own.
+
+Its pull requests, in order, with the items each carries:
+
+- `feature/redesign-tokens`: 1 and 2, with the button styles and the sample data of ui-guide.md.
+- `feature/redesign-stream`: 3 and 5.
+- `feature/redesign-toss`: 4 and 6, with the vase symbol. The command for a new note stops passing a closure through a focused value here; the Xcode 27 SDK warns that a closure there invalidates what depends on the value on every update.
+- `feature/redesign-note`: 7.
+- `feature/redesign-settings`: 8.
+- `feature/redesign-undo`: 9.
+- `feature/redesign-sign-in`: 10.
+- `feature/redesign-look`: 12 over the whole phase.
+
+The words of item 11 go in with the screen that shows them.
 
 1. Add the color sets to `Assets.xcassets` with both appearances, set `AccentColor` to the accent, and add the `ShapeStyle` extension with the token and alias names.
 2. Add the type helpers: the note body style with its leading, the scaled heading sizes, the derived style.

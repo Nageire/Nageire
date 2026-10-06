@@ -72,7 +72,7 @@ By principle 5 the content is already out of the developer's hands. The decision
 - GitHub's device authorization page shows neither the app's logo nor its description, and installing the GitHub App is a separate page that GitHub does not lead to. The app's own screens carry the explanation: the first screen lists the three steps (enter a code, authorize, install on the repository for notes), the code screen says what GitHub will ask for, and the repository list, while empty, says how to install. GitHub opens in the browser, where the user is already signed in, and the repository list is read again when the app comes back to the front.
 - The app icon is one Icon Composer file, `AppIcon.icon`, in three layers: the background, the vase with its branches, and the flowers. The system renders the light, dark, tinted, and clear appearances from it.
 - No repository name or token is hard-coded. Sign-in and the choice of destination repository are screens in the app. The GitHub App's client ID is public, not a token, and ships with the app.
-- The minimum OS is the current release, iOS 26 and macOS 26.
+- The minimum OS is the current release, iOS 27 and macOS 27.
 
 ## Roadmap
 

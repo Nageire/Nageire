@@ -33,4 +33,4 @@ CI runs both on every pull request. A Linux session cannot build the app and is 
 
 ## State of the redesign
 
-Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded; building it has not started. The project was last built with Xcode 26 and still carries the iOS 26 and macOS 26 deployment targets, Swift language mode 5, and a CI runner from that time; moving it to Xcode 27 is the step before phase 1 in `docs/workplan.md`. Then phase 1, on a branch named there, in an environment with Xcode. Do not begin a later phase before the earlier one is merged.
+Steps 1 to 6 of the roadmap in `docs/concept.md` are built and merged. The design of the redesign is settled and recorded; building it has not started. The project builds with Xcode 27 against the iOS 27 and macOS 27 deployment targets, and CI runs on the `xcode-27` runner image. It is still in Swift language mode 5; moving it to mode 6 is what is left of the step before phase 1 in `docs/workplan.md`. Then phase 1, as the pull requests named there, in an environment with Xcode. Do not begin a pull request before the one before it is merged.
