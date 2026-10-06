@@ -105,17 +105,32 @@ enum SampleData {
     }
 }
 
+/// A state of the app the design renders, which the sample can start in.
+enum SampleScene: String {
+    /// The sample account with its notes.
+    case stream
+    /// The sample account before its first note.
+    case empty
+    /// The sample account with GitHub refusing what it sends, as after the app was removed from the repository.
+    case refused
+    /// The app before sign-in, holding nothing.
+    case signedOut
+}
+
 extension AppModel {
     /// A model that keeps to itself: its notes are in memory, its defaults are a suite of its own,
     /// it reads no Keychain, and it reaches no network. GitHub answers as it would while the
     /// device is offline, which keeps the unsent note unsent and leaves an edit or a deletion waiting.
-    /// - Parameter signedIn: True for the sample account with the sample notes. False for the app before sign-in, holding nothing.
-    static func sample(signedIn: Bool = true) -> AppModel {
-        let notes = signedIn ? SampleData.notes() : []
+    static func sample(_ scene: SampleScene = .stream) -> AppModel {
+        let notes = scene == .empty || scene == .signedOut ? [] : SampleData.notes()
+        let signedIn = scene != .signedOut
         let store = InMemoryNoteStore(pending: notes.filter(\.isPending).map {
             Note(fileName: String($0.path[fileNameStart(of: $0.path)...]), contents: $0.contents)
         })
-        let api = SampleAPI(files: notes.filter { !$0.isPending }.map { StoredFile(path: $0.path, contents: Data($0.contents.utf8)) })
+        let api = SampleAPI(
+            files: notes.filter { !$0.isPending }.map { StoredFile(path: $0.path, contents: Data($0.contents.utf8)) },
+            refusesWrites: scene == .refused
+        )
         let oauth = SampleOAuth()
         // The standard defaults hold the account, the repository, and the draft of the person's own sign-in.
         let suite = "com.yamat47.Nageire.sample"
@@ -145,10 +160,17 @@ private struct SampleAPI: GitHubAPI {
     /// What the repository holds.
     private let files: [RemoteFile]
     private let blobs: [String: Data]
+    /// Answers a write with 404, as GitHub does for a repository the app can no longer reach. Otherwise the device is offline.
+    private let refusesWrites: Bool
 
-    init(files: [StoredFile]) {
+    init(files: [StoredFile], refusesWrites: Bool) {
         self.files = files.map { RemoteFile(path: $0.path, sha: RemoteFile.sha(of: $0.contents)) }
         blobs = Dictionary(zip(self.files.map(\.sha), files.map(\.contents))) { first, _ in first }
+        self.refusesWrites = refusesWrites
+    }
+
+    private var writeFailure: any Error {
+        refusesWrites ? GitHubAPIError.unexpectedStatus(404) : URLError(.notConnectedToInternet)
     }
 
     func currentUserLogin() async throws -> String { SampleData.accountLogin }
@@ -163,15 +185,15 @@ private struct SampleAPI: GitHubAPI {
     }
 
     func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
-        throw URLError(.notConnectedToInternet)
+        throw writeFailure
     }
 
     func writeFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
-        throw URLError(.notConnectedToInternet)
+        throw writeFailure
     }
 
     func deleteFile(at path: String, in repository: Repository, message: String) async throws {
-        throw URLError(.notConnectedToInternet)
+        throw writeFailure
     }
 }
 

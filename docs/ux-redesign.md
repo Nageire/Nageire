@@ -11,7 +11,7 @@ The app serves two moments that want different things. Tossing in wants the fewe
 A note has no title field. The list and the note's header show a display title derived from the text, and a person who wants a real title writes one as a Markdown heading.
 
 - When the first non-blank line starts with `# `, that line without the marker is the title, and the excerpt in the list starts at the next line.
-- Otherwise the first non-blank line is the title, cut at the end of its first sentence or at 40 characters, whichever comes first, and the excerpt is what follows.
+- Otherwise the first non-blank line is the title, cut at the end of its first sentence or at 40 characters, whichever comes first, and the excerpt is what follows. The Markdown marks are taken out of it as out of the excerpt, so that a note that begins with a task or in bold reads as its words. A sentence ends at 。, ！, or ？, and at a period followed by a space or the end of the line, so that a decimal or an address does not end one. A note whose only line is an image is called by the file's name.
 - The heading button in the editor's accessory bar inserts `# ` at the start of the first line. That is the whole of "adding a title".
 - The file name stays the timestamp. A name derived from the title would change with every edit of the first line, and a rename on GitHub is a delete and an add, which breaks the one-request-per-file rule and the file's history.
 - Nothing goes into the front matter for it. A title in the body is shown by every Markdown renderer, GitHub's file view included.

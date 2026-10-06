@@ -10,6 +10,14 @@ struct NoteEntry: Identifiable, Hashable {
     let updatedAt: Date?
     /// GitHub does not have the note as it is shown: it is new, or edited, and still waiting to be sent.
     let isPending: Bool
+    /// What the list and the note's header call the note: its first heading, or the start of its first line.
+    let displayTitle: String
+    /// The title is a heading the person wrote, not a line cut short.
+    let hasHeading: Bool
+    /// The text after the title, with the Markdown marks taken out, one line per line of the note.
+    let excerpt: String
+    /// The files the note links to beside itself, as `![name](<folder>/name)` lines.
+    let attachmentCount: Int
 
     var id: String { path }
 
@@ -23,6 +31,63 @@ struct NoteEntry: Identifiable, Hashable {
         // The app's own file names still carry the time; any other file is listed without one.
         createdAt = Self.date(of: "created", in: frontMatter) ?? Note.timeOfWriting(inFileName: path[fileNameStart(of: path)...])
         updatedAt = Self.date(of: "updated", in: frontMatter)
+        (displayTitle, hasHeading, excerpt, attachmentCount) = Self.summary(of: body)
+    }
+
+    /// The longest a title cut from a first line that is not a heading can be.
+    static let titleLength = 40
+
+    /// A heading on the first line is the title as written. Any other first line of text is cut at
+    /// the end of its first sentence or at `titleLength` characters, and the rest of the line opens
+    /// the excerpt. A note has no title field, so its first words serve, and a person who wants a
+    /// real title writes a heading. A note that is an image and nothing else is called by the file's name.
+    private static func summary(of body: String) -> (title: String, hasHeading: Bool, excerpt: String, attachments: Int) {
+        var title: String?
+        var hasHeading = false
+        var excerpt: [String] = []
+        var attachments = 0
+        var firstFile: String?
+        for line in body.split(separator: "\n").map({ $0.trimmingCharacters(in: .whitespaces) }) {
+            // An image line is nothing to read, since its name is not text.
+            if line.hasPrefix("![") {
+                if let file = line.wholeMatch(of: attachmentLine)?.output.1 {
+                    attachments += 1
+                    firstFile = firstFile ?? file.split(separator: "/").last.map(String.init)
+                }
+                continue
+            }
+            let text = plainText(of: line)
+            guard !text.isEmpty else { continue }
+            if title != nil {
+                excerpt.append(text)
+            } else if line.hasPrefix("# ") {
+                title = text
+                hasHeading = true
+            } else {
+                let sentenceEnd = text.firstMatch(of: sentenceEnd)?.range.upperBound ?? text.endIndex
+                let cut = min(sentenceEnd, text.prefix(titleLength).endIndex)
+                title = String(text[..<cut])
+                let rest = text[cut...].trimmingCharacters(in: .whitespaces)
+                if !rest.isEmpty { excerpt.append(rest) }
+            }
+        }
+        return (title ?? firstFile ?? "", hasHeading, excerpt.joined(separator: "\n"), attachments)
+    }
+
+    /// A Japanese sentence mark, or a period that is followed by a space or ends the line, so that a decimal or an address does not end a sentence.
+    private static let sentenceEnd = /[。！？!?]|\.(?=\s|$)/
+    /// An image line whose link is relative, which is a file in the folder beside the note.
+    private static let attachmentLine = /!\[[^\]]*\]\((?![^)]*:\/\/)([^)]+)\)/
+    /// The marker that opens a heading, a list item with or without its task box, a numbered item, or a quote.
+    private static let blockMarker = /^(#{1,6} |[-*+] (\[[ xX]\] )?|\d+[.)] |> )/
+    private static let link = /\[([^\]]+)\]\([^)]*\)/
+    private static let inlineMarks = /[*_`]+/
+
+    /// The line without its Markdown marks: the block marker, emphasis and code marks, and a link's address.
+    private static func plainText(of line: String) -> String {
+        String(line.trimmingPrefix(blockMarker))
+            .replacing(link) { String($0.output.1) }
+            .replacing(inlineMarks, with: "")
     }
 
     static let dateFormat = Date.FormatStyle.dateTime.year().month().day().hour().minute()

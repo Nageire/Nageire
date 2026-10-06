@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld attachments" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添付ファイル %lld 件"
+          }
+        }
+      }
+    },
     "Add or remove repositories on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -31,12 +41,12 @@
         }
       }
     },
-    "Can't write to the repository. Check it in Settings." : {
+    "Can't write to the repository." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "リポジトリに書き込めません。設定で確認してください。"
+            "value" : "リポジトリに書き込めません。"
           }
         }
       }
@@ -57,6 +67,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "リポジトリを変更"
+          }
+        }
+      }
+    },
+    "Check it in Settings." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定で確認してください。"
           }
         }
       }
@@ -87,16 +107,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "コードをコピー"
-          }
-        }
-      }
-    },
-    "Could not load notes from GitHub." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub からメモを読み込めませんでした。"
           }
         }
       }
@@ -261,12 +271,22 @@
         }
       }
     },
-    "No notes yet" : {
+    "No date" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "メモはまだありません"
+            "value" : "日付なし"
+          }
+        }
+      }
+    },
+    "Nothing here yet" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "まだ何もありません"
           }
         }
       }
@@ -441,6 +461,26 @@
         }
       }
     },
+    "Today" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日"
+          }
+        }
+      }
+    },
+    "Toss in whatever comes to mind, as it is.\nArranging it can wait." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "思いついたことを、そのまま投げ入れてください。\n整えるのはあとでいい。"
+          }
+        }
+      }
+    },
     "Toss in your thoughts, arrange them later." : {
       "localizations" : {
         "ja" : {
@@ -481,12 +521,12 @@
         }
       }
     },
-    "Write a note" : {
+    "Yesterday" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "メモを書く"
+            "value" : "昨日"
           }
         }
       }
