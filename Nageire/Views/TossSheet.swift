@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The text field for a new note, shown as the detail column of a wide window and in a sheet over a narrow one.
-struct ComposeView: View {
+/// The screen for a new note: a sheet over a narrow window, and the detail column of a wide one.
+struct TossSheet: View {
     /// Changes each time the user asks for a new note, which puts the cursor in the field even when it is already showing.
     let focusRequest: Int
     var onSaved: () -> Void = {}

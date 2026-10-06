@@ -60,7 +60,7 @@ struct StreamView: View {
                 if let selection, let note = notes.first(where: { $0.id == selection }) {
                     NoteDetailView(note: note, draft: $editDraft) { noteToDelete = note }
                 } else if isWide {
-                    ComposeView(focusRequest: newNoteRequests)
+                    TossSheet(focusRequest: newNoteRequests)
                 }
             }
             .toolbar {
@@ -86,7 +86,7 @@ struct StreamView: View {
         }
         .sheet(isPresented: $isComposingInSheet) {
             NavigationStack {
-                ComposeView(focusRequest: newNoteRequests) { isComposingInSheet = false }
+                TossSheet(focusRequest: newNoteRequests) { isComposingInSheet = false }
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel", role: .cancel) { isComposingInSheet = false }
