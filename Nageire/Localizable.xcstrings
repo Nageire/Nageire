@@ -171,12 +171,12 @@
         }
       }
     },
-    "Delete this note?" : {
+    "Deleted" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このメモを削除しますか？"
+            "value" : "削除しました"
           }
         }
       }
@@ -277,16 +277,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub でインストール"
-          }
-        }
-      }
-    },
-    "It is deleted from the GitHub repository as well." : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub のリポジトリからも削除されます。"
           }
         }
       }
@@ -637,6 +627,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "もう一度試す"
+          }
+        }
+      }
+    },
+    "Undo" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取り消す"
           }
         }
       }

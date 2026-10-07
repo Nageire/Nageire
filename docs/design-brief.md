@@ -42,7 +42,7 @@ COMPONENTS
 - Day header (13 semibold, ink-2): 今日 / 昨日 / 10月1日 水曜日.
 - Unsent mark: a hollow circle with "未送信". Sent: nothing, or a small check in the note header.
 - Banner for a refused write (accent-wash, accent-text), shown only when GitHub refuses.
-- Undo bar: a floating pill at the bottom, paper-raised, "削除しました" on the left and "元に戻す" in accent-text on the right, visible for ten seconds. It replaces the confirmation dialog.
+- Undo bar: a floating pill at the bottom, paper-raised, "削除しました" on the left and "取り消す" in accent-text on the right, visible for ten seconds. It replaces the confirmation dialog.
 - Editor styles: H1/H2/H3 with faint "#" marks, bold and italic with faint "*" marks, list items with aligned faint "-", task items as tappable checkboxes (accent when checked, strike-through text), links in accent-text with a hairline underline, an image shown as a rounded thumbnail under its line with a small caption (file name, size).
 - Note header: date line (13, ink-2: written, edited, sent). Variant: a tentative title in the derived style with a small text button "見出しにする" beside it.
 - Related section, below the note's text: the label "関連" (13 semibold, ink-2), up to five rows, each a note's title (15) with a short reason beneath (13, ink-2: 同じ歯医者の話 / 先月の稽古の続き), and a last line in footnote size, "この端末の中で探しました". The section is absent when there is nothing related.
@@ -65,7 +65,7 @@ SCREENS TO SHOW (iPhone 390×844, macOS 1280×800), in Japanese, light and dark
 10. macOS main window: sidebar list beside a note with its related section; and the quick-entry panel.
 
 COPY (Japanese first, English second)
-投げ入れる Toss in · 新しいメモ New note · 未送信 Unsent · 送信済み Sent · 振り返る Look back · 設定 Settings · 検索 Search · 削除しました 元に戻す Deleted, Undo · 関連 Related · この端末の中で探しました Found on this device · 見出しにする Use as heading · 関連するメモと見出しの提案 Related notes and title suggestions · この端末の Apple Intelligence で動きます。メモは外に送りません。 Runs with Apple Intelligence on this device. Notes never leave it. · まだ何もありません Nothing here yet · 思いついたことを、そのまま投げ入れてください。整えるのはあとでいい。
+投げ入れる Toss in · 新しいメモ New note · 未送信 Unsent · 送信済み Sent · 振り返る Look back · 設定 Settings · 検索 Search · 削除しました 取り消す Deleted, Undo · 関連 Related · この端末の中で探しました Found on this device · 見出しにする Use as heading · 関連するメモと見出しの提案 Related notes and title suggestions · この端末の Apple Intelligence で動きます。メモは外に送りません。 Runs with Apple Intelligence on this device. Notes never leave it. · まだ何もありません Nothing here yet · 思いついたことを、そのまま投げ入れてください。整えるのはあとでいい。
 
 DO NOT
 - No tabs, no folders, no tags, no title field. Topics the model finds are never shown on a note.

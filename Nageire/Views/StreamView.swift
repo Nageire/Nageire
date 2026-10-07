@@ -4,15 +4,14 @@ struct StreamView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.undoManager) private var undoManager
     @State private var query = ""
     @State private var selection: NoteEntry.ID?
     @State private var isComposingInSheet = false
     @State private var newNoteRequests = NewNoteRequests()
     @AppStorage(AppModel.Keys.draft) private var draft = ""
-    @State private var noteToDelete: NoteEntry?
     /// The text of the note being edited in the detail column. Nil while no note is being edited.
     @State private var editDraft: String?
-    @State private var deleteFailed = false
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #else
@@ -23,6 +22,7 @@ struct StreamView: View {
     private var isWide: Bool { horizontalSizeClass == .regular }
 
     var body: some View {
+        @Bindable var model = model
         let notes = model.notes()
         NavigationSplitView {
             list(of: notes)
@@ -36,6 +36,15 @@ struct StreamView: View {
                             .padding(.top, 8)
                     }
                 }
+                .safeAreaInset(edge: .bottom) {
+                    if model.pendingDeletion != nil {
+                        UndoBar(undo: model.undoDeletion)
+                            .padding(.horizontal, Spacing.listGutter)
+                            .padding(.bottom, 8)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(.default, value: model.pendingDeletion?.id)
                 .navigationTitle(Text(verbatim: "Nageire"))
                 #if os(macOS)
                 // The toolbar's own search field takes so much room that the new-note button
@@ -66,7 +75,7 @@ struct StreamView: View {
                 .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 480)
         } detail: {
             if let selection, let note = notes.first(where: { $0.id == selection }) {
-                NoteView(note: note, draft: $editDraft) { noteToDelete = note }
+                NoteView(note: note, draft: $editDraft) { delete(note) }
                     .toolbar {
                         // In a wide window the button belongs to the detail column: the sidebar's
                         // share of the toolbar is too narrow for it and drops it into the overflow menu.
@@ -103,28 +112,15 @@ struct StreamView: View {
         #if !os(macOS)
         .sheet(isPresented: $isShowingSettings) { SettingsView() }
         #endif
-        .confirmationDialog("Delete this note?", isPresented: isConfirmingDeletion, titleVisibility: .visible, presenting: noteToDelete) { note in
-            Button("Delete", role: .destructive) { delete(note) }
-        } message: { _ in
-            Text("It is deleted from the GitHub repository as well.")
-        }
-        .alert("The note could not be deleted", isPresented: $deleteFailed) {
+        .alert("The note could not be deleted", isPresented: $model.deletionFailed) {
             Button("OK", role: .cancel) {}
         }
     }
 
-    private var isConfirmingDeletion: Binding<Bool> {
-        Binding { noteToDelete != nil } set: { if !$0 { noteToDelete = nil } }
-    }
-
     private func delete(_ note: NoteEntry) {
-        do {
-            try model.deleteNote(note)
-            if selection == note.id {
-                selection = nil
-            }
-        } catch {
-            deleteFailed = true
+        model.deleteNote(note, undoManager: undoManager)
+        if selection == note.id {
+            selection = nil
         }
     }
 
@@ -157,13 +153,10 @@ struct StreamView: View {
                             .listRowSeparatorTint(.hairline)
                             .listRowBackground(rowBackground(for: note))
                             .swipeActions {
-                                // Without the destructive role: that role takes the row away at once,
-                                // before the confirmation is answered.
-                                Button("Delete", systemImage: "trash") { noteToDelete = note }
-                                    .tint(.red)
+                                Button("Delete", systemImage: "trash", role: .destructive) { delete(note) }
                             }
                             .contextMenu {
-                                Button("Delete", systemImage: "trash", role: .destructive) { noteToDelete = note }
+                                Button("Delete", systemImage: "trash", role: .destructive) { delete(note) }
                             }
                     }
                 }
@@ -171,7 +164,11 @@ struct StreamView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             #if os(macOS)
-            .onDeleteCommand { noteToDelete = notes.first { $0.id == selection } }
+            .onDeleteCommand {
+                if let note = notes.first(where: { $0.id == selection }) {
+                    delete(note)
+                }
+            }
             #endif
             // In a wide window the list sits beside the note being edited, and selecting
             // another note there would discard the edit without a word.

@@ -113,6 +113,8 @@ enum SampleScene: String {
     case empty
     /// The sample account with GitHub refusing what it sends, as after the app was removed from the repository.
     case refused
+    /// The sample account just after deleting a note, while the undo bar stands.
+    case deleted
     /// The app before sign-in, holding nothing.
     case signedOut
 }
@@ -154,6 +156,10 @@ extension AppModel {
         if signedIn {
             // Choosing the repository fetches its notes, which is how the sent ones reach the list.
             model.select(SampleData.repository)
+        }
+        if scene == .deleted, let newest = notes.first {
+            // The undo window runs from here: the bar stands for its ten seconds after the launch.
+            model.deleteNote(newest)
         }
         return model
     }
