@@ -66,7 +66,7 @@ struct StreamView: View {
                 .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 480)
         } detail: {
             if let selection, let note = notes.first(where: { $0.id == selection }) {
-                NoteDetailView(note: note, draft: $editDraft) { noteToDelete = note }
+                NoteView(note: note, draft: $editDraft) { noteToDelete = note }
                     .toolbar {
                         // In a wide window the button belongs to the detail column: the sidebar's
                         // share of the toolbar is too narrow for it and drops it into the overflow menu.

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct NoteDetailView: View {
+struct NoteView: View {
     let note: NoteEntry
     /// The text being edited. Nil while the note is only read.
     @Binding var draft: String?
