@@ -85,6 +85,11 @@ final class AppModel {
         library.notes(including: outbox.pending, unsent: outbox.changes).filter { $0.id != pendingDeletion?.id }
     }
 
+    /// The model of the sign-in screen, which hands its tokens to this app.
+    func makeSignInModel() -> SignInModel {
+        SignInModel(flow: DeviceFlow(oauth: oauth), onAuthorized: completeSignIn)
+    }
+
     func completeSignIn(with grant: TokenGrant) throws {
         try session.start(with: grant)
         isSignedIn = true

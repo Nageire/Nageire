@@ -11,8 +11,8 @@ struct SignInView: View {
     @State private var didCopy = false
     @Environment(\.openURL) private var openURL
 
-    init(oauth: GitHubOAuth, onAuthorized: @escaping (TokenGrant) throws -> Void) {
-        _model = State(initialValue: SignInModel(flow: DeviceFlow(oauth: oauth), onAuthorized: onAuthorized))
+    init(model: SignInModel) {
+        _model = State(initialValue: model)
     }
 
     var body: some View {
