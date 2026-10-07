@@ -9,6 +9,7 @@ struct NoteView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
+    @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     @State private var saveFailed = false
 
     var body: some View {
@@ -22,7 +23,7 @@ struct NoteView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         NoteHeader(note: note)
                         Text(verbatim: note.body)
-                            .noteBodyStyle()
+                            .noteBodyStyle(serif: serifBody)
                             .foregroundStyle(.ink)
                             .textSelection(.enabled)
                     }

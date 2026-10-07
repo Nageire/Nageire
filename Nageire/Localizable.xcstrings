@@ -11,6 +11,16 @@
         }
       }
     },
+    "Account" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アカウント"
+          }
+        }
+      }
+    },
     "Add or remove repositories on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -41,6 +51,16 @@
         }
       }
     },
+    "Body typeface" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本文の書体"
+          }
+        }
+      }
+    },
     "Can't write to the repository." : {
       "localizations" : {
         "ja" : {
@@ -57,16 +77,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "キャンセル"
-          }
-        }
-      }
-    },
-    "Change repository" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "リポジトリを変更"
           }
         }
       }
@@ -97,6 +107,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "閉じる"
+          }
+        }
+      }
+    },
+    "Coming soon" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "準備中"
           }
         }
       }
@@ -271,6 +291,26 @@
         }
       }
     },
+    "Last sent" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最後に送信"
+          }
+        }
+      }
+    },
+    "Look back" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "振り返る"
+          }
+        }
+      }
+    },
     "More" : {
       "localizations" : {
         "ja" : {
@@ -307,6 +347,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "日付なし"
+          }
+        }
+      }
+    },
+    "Not available on this device. Apple Intelligence is required." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この端末では使えません。Apple Intelligence が必要です。"
           }
         }
       }
@@ -381,6 +431,16 @@
         }
       }
     },
+    "Sans" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ゴシック"
+          }
+        }
+      }
+    },
     "Save" : {
       "localizations" : {
         "ja" : {
@@ -391,12 +451,32 @@
         }
       }
     },
+    "Send now" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今すぐ送信"
+          }
+        }
+      }
+    },
     "Sent" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "送信済み"
+          }
+        }
+      }
+    },
+    "Serif" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明朝"
           }
         }
       }
@@ -451,12 +531,12 @@
         }
       }
     },
-    "Signed in as" : {
+    "Sync" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "サインイン中のユーザー"
+            "value" : "同期"
           }
         }
       }
@@ -581,6 +661,16 @@
         }
       }
     },
+    "Writing" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書く"
+          }
+        }
+      }
+    },
     "Yesterday" : {
       "localizations" : {
         "ja" : {
@@ -597,6 +687,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "昨日 %@"
+          }
+        }
+      }
+    },
+    "^[%lld item](inflect: true)" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件"
           }
         }
       }

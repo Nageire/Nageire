@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     @State private var isChoosingRepository = false
     @State private var isConfirmingSignOut = false
 
@@ -27,17 +29,66 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
-            Section {
-                LabeledContent("Signed in as", value: model.accountLogin ?? "—")
-                LabeledContent("Repository", value: model.repository?.fullName ?? "—")
+            Group {
+                Section("Account") {
+                    Button {
+                        if let profileURL { openURL(profileURL) }
+                    } label: {
+                        row("GitHub", value: model.accountLogin.map { "@\($0)" } ?? "—")
+                    }
+                    .disabled(profileURL == nil)
+                    Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
+                        .foregroundStyle(.accentText)
+                }
+                Section("Repository") {
+                    Button {
+                        isChoosingRepository = true
+                    } label: {
+                        row("Repository", value: model.repository?.fullName ?? "—")
+                    }
+                }
+                Section("Sync") {
+                    LabeledContent("Unsent") {
+                        HStack(spacing: 12) {
+                            Text("^[\(model.outbox.pendingCount) item](inflect: true)")
+                            Button("Send now") { Task { await model.syncNotes() } }
+                                .buttonStyle(.text(compact: true))
+                                .font(.subheadline.weight(.semibold))
+                                .disabled(model.outbox.pendingCount == 0)
+                        }
+                    }
+                    LabeledContent("Last sent") {
+                        if let lastSentAt = model.lastSentAt {
+                            Text(dayAndTime: lastSentAt)
+                        } else {
+                            Text(verbatim: "—")
+                        }
+                    }
+                }
             }
-            Section {
-                Button("Change repository") { isChoosingRepository = true }
-                Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
-            }
-            // The macOS settings window can be opened from the sign-in screen.
+            // The macOS settings window can be opened from the sign-in screen, where only the look applies.
             .disabled(!model.isSignedIn)
+            Section("Writing") {
+                Picker("Body typeface", selection: $serifBody) {
+                    Text("Sans").tag(false)
+                    Text("Serif").tag(true)
+                }
+                .pickerStyle(.segmented)
+            }
+            // The on-device model is not wired until phase 5, so the section reads as on a device without it.
+            Section {
+            } footer: {
+                Text("Not available on this device. Apple Intelligence is required.")
+            }
+            Section("Look back") {
+                LabeledContent("Look back") { Text("Coming soon") }
+                    .disabled(true)
+            }
         }
+        .buttonStyle(.plain)
+        .listRowBackground(Color.paperRaised)
+        .scrollContentBackground(.hidden)
+        .background(.paper)
         .formStyle(.grouped)
         .confirmationDialog("Sign out?", isPresented: $isConfirmingSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { model.signOut() }
@@ -63,4 +114,26 @@ struct SettingsView: View {
             #endif
         }
     }
+
+    private var profileURL: URL? {
+        model.accountLogin.flatMap { URL(string: "https://github.com/")?.appending(path: $0) }
+    }
+
+    /// A row that opens something: the label, the value, and the chevron of the design.
+    private func row(_ title: LocalizedStringKey, value: String) -> some View {
+        LabeledContent(title) {
+            HStack(spacing: 12) {
+                Text(verbatim: value)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.ink2)
+            }
+        }
+        .contentShape(.rect)
+    }
+}
+
+#Preview {
+    SettingsView()
+        .sample(AppModel.sample())
 }

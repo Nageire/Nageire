@@ -15,6 +15,8 @@ final class AppModel {
     private(set) var isSignedIn: Bool
     private(set) var accountLogin: String?
     private(set) var repository: Repository?
+    /// When GitHub last took a note or a change from this device. Nil before the first.
+    private(set) var lastSentAt: Date?
 
     init(configuration: GitHubAppConfiguration, oauth: GitHubOAuth, api: GitHubAPI, outbox: NoteOutbox, library: NoteLibrary, session: GitHubSession, defaults: UserDefaults) {
         self.configuration = configuration
@@ -26,6 +28,7 @@ final class AppModel {
         self.defaults = defaults
 
         isSignedIn = session.hasTokens
+        lastSentAt = defaults.object(forKey: Keys.lastSentAt) as? Date
         if isSignedIn {
             accountLogin = defaults.string(forKey: Keys.accountLogin)
             if let fullName = defaults.string(forKey: Keys.repository) {
@@ -38,8 +41,19 @@ final class AppModel {
             clear()
         }
         session.onSignOut = { [weak self] in self?.clear() }
-        outbox.onSent = { [library] in library.add($0) }
-        outbox.onChanged = { [library] in library.apply($0) }
+        outbox.onSent = { [weak self, library] in
+            library.add($0)
+            self?.recordSend()
+        }
+        outbox.onChanged = { [weak self, library] in
+            library.apply($0)
+            self?.recordSend()
+        }
+    }
+
+    private func recordSend() {
+        lastSentAt = .now
+        defaults.set(lastSentAt, forKey: Keys.lastSentAt)
     }
 
     /// The notes for the list, newest first: what GitHub holds and what is still waiting to be sent.
@@ -104,11 +118,13 @@ final class AppModel {
         isSignedIn = false
         accountLogin = nil
         repository = nil
+        lastSentAt = nil
         outbox.destination = nil
         // Notes already on GitHub are fetched again after the next sign-in; unsent ones stay in the outbox.
         library.removeAll()
         defaults.removeObject(forKey: Keys.accountLogin)
         defaults.removeObject(forKey: Keys.repository)
+        defaults.removeObject(forKey: Keys.lastSentAt)
     }
 
     /// The keys in `defaults`, the model's and the views'.
@@ -117,6 +133,9 @@ final class AppModel {
         static let repository = "repository"
         /// The text of a new note not yet tossed, kept so that it survives a relaunch.
         static let draft = "draft"
+        static let lastSentAt = "lastSentAt"
+        /// The note body in the serif. The rest of the app stays in the sans.
+        static let serifBody = "serifBody"
     }
 }
 
