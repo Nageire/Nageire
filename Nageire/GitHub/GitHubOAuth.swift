@@ -1,6 +1,6 @@
 import Foundation
 
-struct DeviceCode: Equatable, Decodable {
+struct DeviceCode: Hashable, Decodable {
     let deviceCode: String
     let userCode: String
     let verificationURL: URL

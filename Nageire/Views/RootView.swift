@@ -12,7 +12,9 @@ struct RootView: View {
     @ViewBuilder
     private var screen: some View {
         if !model.isSignedIn {
-            SignInView(oauth: model.oauth, onAuthorized: model.completeSignIn)
+            NavigationStack {
+                SignInView(model: model.makeSignInModel())
+            }
         } else if model.repository == nil {
             NavigationStack {
                 RepositoryPickerView(api: model.api)
