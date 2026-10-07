@@ -12,7 +12,7 @@ struct NoteHeader: View {
                 separator
             }
             if let updatedAt = note.updatedAt {
-                Text("Edited \(dayAndTime(updatedAt))")
+                Text("Edited \(Text(dayAndTime: updatedAt))")
                 separator
             }
             if note.isPending {
@@ -33,14 +33,6 @@ struct NoteHeader: View {
             .accessibilityHidden(true)
     }
 
-    /// 昨日 18:40 for a day close by, the date otherwise, so that an edit of today reads as such.
-    private func dayAndTime(_ date: Date) -> Text {
-        switch DayGroup.Label(date) {
-        case .today: Text("Today \(date, format: .dateTime.hour().minute())")
-        case .yesterday: Text("Yesterday \(date, format: .dateTime.hour().minute())")
-        case .day, .undated: Text(date, format: .dateTime.month().day().hour().minute())
-        }
-    }
 }
 
 #Preview {
