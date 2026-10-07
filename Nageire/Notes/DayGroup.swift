@@ -19,12 +19,20 @@ struct DayGroup: Identifiable {
 
     /// What the section is called: 今日, 昨日, or the day itself.
     func label(now: Date = .now, calendar: Calendar = .current) -> Label {
-        guard let day else { return .undated }
-        if calendar.isDate(day, inSameDayAs: now) { return .today }
-        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(day, inSameDayAs: yesterday) {
-            return .yesterday
+        day.map { Label($0, now: now, calendar: calendar) } ?? .undated
+    }
+}
+
+extension DayGroup.Label {
+    /// How a moment is named by its day: 今日, 昨日, or the day itself.
+    init(_ date: Date, now: Date = .now, calendar: Calendar = .current) {
+        if calendar.isDate(date, inSameDayAs: now) {
+            self = .today
+        } else if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) {
+            self = .yesterday
+        } else {
+            self = .day(date)
         }
-        return .day(day)
     }
 }
 

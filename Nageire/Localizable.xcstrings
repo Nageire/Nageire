@@ -271,6 +271,16 @@
         }
       }
     },
+    "More" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "その他"
+          }
+        }
+      }
+    },
     "New Note" : {
       "localizations" : {
         "ja" : {
@@ -341,6 +351,16 @@
         }
       }
     },
+    "Open on GitHub" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub で開く"
+          }
+        }
+      }
+    },
     "Reload" : {
       "localizations" : {
         "ja" : {
@@ -367,6 +387,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存"
+          }
+        }
+      }
+    },
+    "Sent" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "送信済み"
           }
         }
       }
@@ -491,6 +521,16 @@
         }
       }
     },
+    "Today %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日 %@"
+          }
+        }
+      }
+    },
     "Toss in whatever comes to mind, as it is.\nArranging it can wait." : {
       "localizations" : {
         "ja" : {
@@ -547,6 +587,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "昨日"
+          }
+        }
+      }
+    },
+    "Yesterday %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨日 %@"
           }
         }
       }

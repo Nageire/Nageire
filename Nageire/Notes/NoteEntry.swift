@@ -90,8 +90,6 @@ struct NoteEntry: Identifiable, Hashable {
             .replacing(inlineMarks, with: "")
     }
 
-    static let dateFormat = Date.FormatStyle.dateTime.year().month().day().hour().minute()
-
     /// Orders by the time shown in the list. Files without a time come last, and the file name settles ties.
     static func isNewer(_ a: NoteEntry, _ b: NoteEntry) -> Bool {
         switch (a.createdAt, b.createdAt) {
