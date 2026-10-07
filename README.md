@@ -17,7 +17,7 @@ Since the files are plain Markdown in your repository, they stay readable with a
 
 ## Status
 
-Nageire is at the sixth step of its roadmap. You can sign in with GitHub, choose the repository for your notes, write notes that are saved on the device and sent to that repository, read and search every note the repository holds, and edit and delete them. Reflection with a language model is not built yet and is set aside for now. The design and the reasons behind it are in [docs/concept.md](docs/concept.md). A redesign of the whole app is settled and waits to be built; its decisions are in [docs/ux-redesign.md](docs/ux-redesign.md) and the order of work in [docs/workplan.md](docs/workplan.md).
+Nageire is at the sixth step of its roadmap. You can sign in with GitHub, choose the repository for your notes, write notes that are saved on the device and sent to that repository, read and search every note the repository holds, and edit and delete them. Reflection with a language model is not built yet and is set aside for now. The design and the reasons behind it are in [docs/concept.md](docs/concept.md). The redesign of the whole app is settled, and its first phase, the look, is built: paper, ink, and vermilion, the stream grouped by day, the bar at the bottom with search and the button for a new note, the undo for deletion, and the restructured Settings and sign-in. The editor, attachments, capture from outside the app, and looking back follow in that order; the decisions are in [docs/ux-redesign.md](docs/ux-redesign.md) and the order of work in [docs/workplan.md](docs/workplan.md).
 
 ## Building
 
