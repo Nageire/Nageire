@@ -30,6 +30,7 @@ struct TextButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .font(isCompact ? .subheadline.weight(.semibold) : .body.weight(.semibold))
             .padding(isCompact ? 8 : 12)
             .foregroundStyle(.accentText)
             .contentShape(.rect)
@@ -157,7 +158,7 @@ private struct Floating<Fill: ShapeStyle>: ShapeStyle {
             Button { } label: { Text(verbatim: "完了") }
                 .buttonStyle(.primary(compact: true))
                 .disabled(true)
-            Button { } label: { Text(verbatim: "元に戻す") }
+            Button { } label: { Text(verbatim: "取り消す") }
                 .buttonStyle(.text)
         }
         Hairline()

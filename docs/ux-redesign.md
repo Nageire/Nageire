@@ -116,7 +116,7 @@ The path from pull request #12 stays: the three steps shown before the first one
 
 Each row carries its own state: nothing when the note is sent, a hollow circle with "未送信" when it is not. The footer the list has today goes away. A banner appears above the stream only when GitHub refused and the app cannot write, with a link to Settings. A transient failure shows nothing; the hollow circles already say it. Settings gains a section with the count of unsent items, the time of the last send, "今すぐ送信", and the Wi-Fi switch.
 
-Deleting a note, by swipe or from the menu, removes the row at once and shows "削除しました" with "元に戻す" in a bar at the bottom for ten seconds. The deletion is queued when the bar goes away, and the bar waits while the app is not in front. Within that window Command-Z on macOS and the shake and three-finger gestures on iOS undo it as well, through the system's undo manager. Ten seconds is the default Mail gives "Undo Send". This changes the decision in concept.md that deleting asks for confirmation every time: a confirmation is answered without being read from the third time on, while an undo asks nothing and still protects. Apple's other pattern for deletion, a "Recently Deleted" list, would need the app to read the Git history, which the one-file-at-a-time API does not give it, so the history stays the only trash.
+Deleting a note, by swipe or from the menu, removes the row at once and shows "削除しました" with "取り消す" in a bar at the bottom for ten seconds. The deletion is queued when the bar goes away, and the bar waits while the app is not in front. Within that window Command-Z on macOS and the shake and three-finger gestures on iOS undo it as well, through the system's undo manager. Ten seconds is the default Mail gives "Undo Send". This changes the decision in concept.md that deleting asks for confirmation every time: a confirmation is answered without being read from the third time on, while an undo asks nothing and still protects. Apple's other pattern for deletion, a "Recently Deleted" list, would need the app to read the Git history, which the one-file-at-a-time API does not give it, so the history stays the only trash.
 
 ## Words
 
@@ -127,6 +127,7 @@ Deleting a note, by swipe or from the menu, removes the row at once and shows "�
 | Draft | 書きかけ | The row at the top of the stream while a draft waits. |
 | New note | 新しいメモ | The sheet's label. |
 | Unsent, Sent | 未送信, 送信済み | The row and the note header. |
+| Deleted, Undo | 削除しました, 取り消す | The undo bar. 取り消す is the system's word for Undo, in the Edit menu, in Mail's 送信を取り消す, and in Photos; the bar read 元に戻す in the design, which is the word of Gmail and Slack, and would have differed from the Edit menu beside it. |
 | Look back | 振り返る | The reflection entry, when it ships. |
 | Note | メモ | Everywhere. Not ノート. |
 

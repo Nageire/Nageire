@@ -15,7 +15,7 @@ struct AppModelTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    private func model() -> AppModel {
+    private func model(undoWindow: Duration = .seconds(10)) -> AppModel {
         let oauth = FakeOAuth()
         return AppModel(
             configuration: GitHubAppConfiguration(clientID: "client-id", slug: "nageire"),
@@ -24,7 +24,8 @@ struct AppModelTests {
             outbox: NoteOutbox(store: notes, api: api),
             library: NoteLibrary(store: notes, api: api),
             session: GitHubSession(store: store, oauth: oauth),
-            defaults: defaults
+            defaults: defaults,
+            undoWindow: undoWindow
         )
     }
 
@@ -190,9 +191,20 @@ struct AppModelTests {
     }
     private let remotePath = "notes/2026/10/2026-10-03T135812Z-a1b2.md"
 
-    private func modelListingOneRemoteNote() async throws -> AppModel {
-        api.remoteNotes = .success([remotePath: "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\nFrom another device\n"])
-        let model = model()
+    /// The window runs on the clock, so the tests that let it close give it a short one and wait here.
+    private func undoWindowToClose(of model: AppModel) async {
+        while model.pendingDeletion != nil {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+    }
+
+    private func modelListingOneRemoteNote(undoWindow: Duration = .seconds(10)) async throws -> AppModel {
+        try await modelListing([remotePath: "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\nFrom another device\n"], undoWindow: undoWindow)
+    }
+
+    private func modelListing(_ remoteNotes: [String: String], undoWindow: Duration = .seconds(10)) async throws -> AppModel {
+        api.remoteNotes = .success(remoteNotes)
+        let model = model(undoWindow: undoWindow)
         try model.completeSignIn(with: .sample)
         model.select(Repository(owner: "octocat", name: "notes"))
         await model.syncNotes()
@@ -216,17 +228,112 @@ struct AppModelTests {
         #expect(model.lastSentAt != nil)
     }
 
-    @Test func aDeletedNoteLeavesTheListAtOnceAndIsThenRemovedFromGitHub() async throws {
-        let model = try await modelListingOneRemoteNote()
+    @Test(.timeLimit(.minutes(5))) func aDeletedNoteLeavesTheListAtOnceAndIsRemovedFromGitHubOnceItsUndoWindowCloses() async throws {
+        let model = try await modelListingOneRemoteNote(undoWindow: .milliseconds(50))
+        let note = try #require(model.notes().first)
 
-        try model.deleteNote(try #require(model.notes().first))
+        model.deleteNote(note)
 
         #expect(model.notes().isEmpty)
+        #expect(model.pendingDeletion == note)
+        #expect(model.outbox.changes.isEmpty)
 
+        await undoWindowToClose(of: model)
         await model.syncNotes()
 
         #expect(model.notes().isEmpty)
         #expect(try api.remoteNotes.get().isEmpty)
+    }
+
+    @Test func undoingADeletionWithinItsWindowPutsTheNoteBackWithNothingRecorded() async throws {
+        let model = try await modelListingOneRemoteNote()
+        let note = try #require(model.notes().first)
+        model.deleteNote(note)
+
+        model.undoDeletion()
+
+        #expect(model.notes() == [note])
+        #expect(model.pendingDeletion == nil)
+        #expect(model.outbox.changes.isEmpty)
+        await model.syncNotes()
+        #expect(api.deleteFileAttempts.isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(5))) func theUndoWindowWaitsWhileTheAppIsNotInFront() async throws {
+        let model = try await modelListingOneRemoteNote(undoWindow: .milliseconds(50))
+        // Offline, so that the deletion stays recorded once the window closes.
+        api.changeResults = [.failure(URLError(.notConnectedToInternet))]
+        model.deleteNote(try #require(model.notes().first))
+
+        model.isInFront = false
+        try await Task.sleep(for: .milliseconds(200))
+
+        #expect(model.pendingDeletion != nil)
+        #expect(model.outbox.changes.isEmpty)
+
+        model.isInFront = true
+        await undoWindowToClose(of: model)
+
+        #expect(model.outbox.changes.map(\.path) == [remotePath])
+    }
+
+    @Test func deletingASecondNoteRecordsTheFirstDeletionAtOnce() async throws {
+        let otherPath = "notes/2026/10/2026-10-04T080000Z-c3d4.md"
+        let model = try await modelListing([remotePath: "First\n", otherPath: "Second\n"])
+        api.changeResults = [.failure(URLError(.notConnectedToInternet))]
+        let first = try #require(model.notes().first { $0.path == remotePath })
+        let second = try #require(model.notes().first { $0.path == otherPath })
+
+        model.deleteNote(first)
+        model.deleteNote(second)
+
+        #expect(model.notes().isEmpty)
+        #expect(model.pendingDeletion == second)
+        #expect(model.outbox.changes.map(\.path) == [remotePath])
+        model.undoDeletion()
+    }
+
+    @Test func aDeletionStillInItsWindowIsUndoneWhenAnotherRepositoryIsChosen() async throws {
+        let model = try await modelListingOneRemoteNote()
+        model.deleteNote(try #require(model.notes().first))
+
+        model.select(Repository(owner: "octocat", name: "journal"))
+        await model.syncNotes()
+
+        #expect(model.pendingDeletion == nil)
+        #expect(model.outbox.changes.isEmpty)
+        #expect(api.deleteFileAttempts.isEmpty)
+    }
+
+    @Test func aDeletionStillInItsWindowAtSignOutIsRecordedAndStaysOnTheDevice() async throws {
+        let model = try await modelListingOneRemoteNote()
+        model.deleteNote(try #require(model.notes().first))
+
+        model.signOut()
+
+        #expect(model.pendingDeletion == nil)
+        #expect(model.outbox.changes.map(\.path) == [remotePath])
+    }
+
+    @Test(.timeLimit(.minutes(5))) func theUndoManagerUndoesADeletionWithinItsWindowAndNotAfterIt() async throws {
+        let model = try await modelListingOneRemoteNote(undoWindow: .milliseconds(50))
+        api.changeResults = [.failure(URLError(.notConnectedToInternet))]
+        let note = try #require(model.notes().first)
+        let undoManager = UndoManager()
+
+        model.deleteNote(note, undoManager: undoManager)
+        #expect(undoManager.canUndo)
+        undoManager.undo()
+
+        #expect(model.notes() == [note])
+        #expect(!undoManager.canUndo)
+
+        model.deleteNote(note, undoManager: undoManager)
+        await undoWindowToClose(of: model)
+        undoManager.undo()
+
+        #expect(model.notes().isEmpty)
+        #expect(model.outbox.changes.map(\.path) == [remotePath])
     }
 
     @Test func anEditStillUnsentAtSignOutStaysOnTheDevice() async throws {

@@ -17,8 +17,31 @@ final class AppModel {
     private(set) var repository: Repository?
     /// When GitHub last took a note or a change from this device. Nil before the first.
     private(set) var lastSentAt: Date?
+    /// The note whose deletion waits for the undo window to close. Out of `notes()` meanwhile.
+    var pendingDeletion: NoteEntry? { deletion?.note }
+    /// Set when the deletion could not be recorded on the device once its window closed; the note is back in the list.
+    var deletionFailed = false
+    /// Whether the app is in front, where the undo bar can be seen. The window runs only then,
+    /// so that the bar never goes away unseen.
+    var isInFront = true {
+        didSet { updateUndoWindow() }
+    }
 
-    init(configuration: GitHubAppConfiguration, oauth: GitHubOAuth, api: GitHubAPI, outbox: NoteOutbox, library: NoteLibrary, session: GitHubSession, defaults: UserDefaults) {
+    private let undoWindow: Duration
+    private var deletion: PendingDeletion?
+    /// The window's undo manager, which reaches the pending deletion through Command-Z and the shake.
+    private weak var undoManager: UndoManager?
+
+    init(
+        configuration: GitHubAppConfiguration,
+        oauth: GitHubOAuth,
+        api: GitHubAPI,
+        outbox: NoteOutbox,
+        library: NoteLibrary,
+        session: GitHubSession,
+        defaults: UserDefaults,
+        undoWindow: Duration = .seconds(10)
+    ) {
         self.configuration = configuration
         self.oauth = oauth
         self.api = api
@@ -26,6 +49,7 @@ final class AppModel {
         self.library = library
         self.session = session
         self.defaults = defaults
+        self.undoWindow = undoWindow
 
         isSignedIn = session.hasTokens
         lastSentAt = defaults.object(forKey: Keys.lastSentAt) as? Date
@@ -58,7 +82,7 @@ final class AppModel {
 
     /// The notes for the list, newest first: what GitHub holds and what is still waiting to be sent.
     func notes() -> [NoteEntry] {
-        library.notes(including: outbox.pending, unsent: outbox.changes)
+        library.notes(including: outbox.pending, unsent: outbox.changes).filter { $0.id != pendingDeletion?.id }
     }
 
     func completeSignIn(with grant: TokenGrant) throws {
@@ -75,7 +99,9 @@ final class AppModel {
 
     func select(_ repository: Repository) {
         if repository != self.repository {
-            // The device's copy mirrors one repository, so the previous one's notes go.
+            // The device's copy mirrors one repository, so the previous one's notes go. A deletion
+            // still in its window goes with them: recorded, it would be applied to this repository.
+            undoDeletion()
             library.removeAll()
         }
         self.repository = repository
@@ -101,9 +127,65 @@ final class AppModel {
         Task { await outbox.send() }
     }
 
-    func deleteNote(_ note: NoteEntry) throws {
-        try outbox.delete(note)
-        Task { await outbox.send() }
+    /// Takes the note out of the list and opens the undo window; the deletion is recorded and sent when the window closes.
+    /// A deletion still in its window is recorded at once, so that one bar stands for one note.
+    func deleteNote(_ note: NoteEntry, undoManager: UndoManager? = nil) {
+        guard deletion?.note.id != note.id else { return }
+        queuePendingDeletion()
+        deletion = PendingDeletion(note: note, timeLeft: undoWindow)
+        self.undoManager = undoManager
+        undoManager?.registerUndo(withTarget: self) { model in model.undoDeletion() }
+        undoManager?.setActionName(String(localized: "Delete"))
+        updateUndoWindow()
+    }
+
+    /// Puts the note back. Nothing was recorded yet, so there is nothing to take back from the outbox.
+    func undoDeletion() {
+        guard deletion != nil else { return }
+        closeUndoWindow()
+    }
+
+    private func queuePendingDeletion() {
+        guard let note = deletion?.note else { return }
+        closeUndoWindow()
+        do {
+            try outbox.delete(note)
+            Task { await outbox.send() }
+        } catch {
+            deletionFailed = true
+        }
+    }
+
+    private func closeUndoWindow() {
+        deletion?.run?.task.cancel()
+        deletion = nil
+        undoManager?.removeAllActions(withTarget: self)
+        undoManager = nil
+    }
+
+    /// Runs the window while the app is in front and holds it otherwise, keeping the time it has left.
+    private func updateUndoWindow() {
+        guard var deletion else { return }
+        if let run = deletion.run {
+            run.task.cancel()
+            deletion.timeLeft = max(.zero, deletion.timeLeft - run.since.duration(to: .now))
+            deletion.run = nil
+        }
+        if isInFront {
+            let task = Task(name: "undo-window") { [timeLeft = deletion.timeLeft] in
+                do {
+                    try await Task.sleep(for: timeLeft)
+                } catch {
+                    // Cancelled: the window is held, or was closed by an undo.
+                    return
+                }
+                // Closed between the wake and this turn of the main actor, for another deletion.
+                guard !Task.isCancelled else { return }
+                queuePendingDeletion()
+            }
+            deletion.run = (task, .now)
+        }
+        self.deletion = deletion
     }
 
     /// Sends what is waiting, then brings the list in line with the repository.
@@ -115,6 +197,8 @@ final class AppModel {
     }
 
     private func clear() {
+        // A deletion still in its window stays on the device through the sign-out, as a recorded one does.
+        queuePendingDeletion()
         isSignedIn = false
         accountLogin = nil
         repository = nil
@@ -137,6 +221,15 @@ final class AppModel {
         /// The note body in the serif. The rest of the app stays in the sans.
         static let serifBody = "serifBody"
     }
+}
+
+/// A deletion in its undo window.
+private struct PendingDeletion {
+    let note: NoteEntry
+    /// What the window has left, as of the moment it last ran or was held.
+    var timeLeft: Duration
+    /// The task sleeping through the window and when it began; nil while the app is not in front.
+    var run: (task: Task<Void, Never>, since: ContinuousClock.Instant)?
 }
 
 extension AppModel {

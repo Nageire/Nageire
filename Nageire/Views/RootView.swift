@@ -2,8 +2,15 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        screen
+            .onChange(of: scenePhase, initial: true) { model.isInFront = scenePhase == .active }
+    }
+
+    @ViewBuilder
+    private var screen: some View {
         if !model.isSignedIn {
             SignInView(oauth: model.oauth, onAuthorized: model.completeSignIn)
         } else if model.repository == nil {

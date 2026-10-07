@@ -53,7 +53,6 @@ struct SettingsView: View {
                             Text("^[\(model.outbox.pendingCount) item](inflect: true)")
                             Button("Send now") { Task { await model.syncNotes() } }
                                 .buttonStyle(.text(compact: true))
-                                .font(.subheadline.weight(.semibold))
                                 .disabled(model.outbox.pendingCount == 0)
                         }
                     }
