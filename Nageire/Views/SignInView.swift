@@ -5,6 +5,7 @@ import AppKit
 import UIKit
 #endif
 
+/// The first screen, with the code screen pushed over it while GitHub waits for the code to be entered.
 struct SignInView: View {
     @State private var model: SignInModel
     @State private var signInTask: Task<Void, Never>?
@@ -16,100 +17,116 @@ struct SignInView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            switch model.state {
-            case .idle:
-                introduction
-                signInButton("Sign in with GitHub")
-            case .requestingCode:
-                ProgressView()
-            case .awaitingAuthorization(let code):
+        front
+            .signInScreen()
+            .navigationDestination(item: awaitingCode) { code in
                 authorization(code)
-            case .failed(let failure):
-                Text(message(for: failure))
-                    .multilineTextAlignment(.center)
-                signInButton("Try again")
+                    .signInScreen()
+            }
+            .onDisappear { signInTask?.cancel() }
+    }
+
+    /// The code GitHub is waiting for, while it is. Going back sets it to nil, which ends the wait.
+    private var awaitingCode: Binding<DeviceCode?> {
+        Binding {
+            if case .awaitingAuthorization(let code) = model.state { code } else { nil }
+        } set: { code in
+            if code == nil {
+                signInTask?.cancel()
             }
         }
-        .padding(32)
-        .frame(maxWidth: 420)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDisappear { signInTask?.cancel() }
-    }
-
-    private var introduction: some View {
-        VStack(spacing: 8) {
-            Image(.appLogo)
-                .resizable()
-                .frame(width: 96, height: 96)
-                .clipShape(.rect(cornerRadius: 22))
-                .accessibilityHidden(true)
-                .padding(.bottom, 16)
-            Text(verbatim: "Nageire")
-                .font(.largeTitle.bold())
-            Text("Toss in your thoughts, arrange them later.")
-                .foregroundStyle(.secondary)
-            steps
-                .padding(.top, 24)
-        }
-        .multilineTextAlignment(.center)
-    }
-
-    // GitHub's pages do not say that installing follows authorizing, so the whole path is
-    // laid out before it starts and the empty repository list after sign-in is expected.
-    private var steps: some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
-            step(1, "Enter a code on GitHub")
-            step(2, "Authorize Nageire")
-            step(3, "Install it on the repository for your notes")
-        }
-        .multilineTextAlignment(.leading)
-    }
-
-    private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
-        GridRow {
-            Text(number, format: .number)
-                .font(.callout.monospacedDigit().bold())
-                .foregroundStyle(.secondary)
-            Text(text)
-        }
-    }
-
-    private func signInButton(_ title: LocalizedStringKey) -> some View {
-        Button(title) {
-            didCopy = false
-            signInTask = Task { await model.signIn() }
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
     }
 
     @ViewBuilder
+    private var front: some View {
+        switch model.state {
+        case .idle, .requestingCode, .awaitingAuthorization:
+            page(StepList(), buttonTitle: "Sign in with GitHub")
+        case .failed(let failure):
+            page(Text(message(for: failure)).multilineTextAlignment(.center), buttonTitle: "Try again")
+        }
+    }
+
+    private func page(_ middle: some View, buttonTitle: LocalizedStringKey) -> some View {
+        FitsOrScrolls {
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Image(.appMark)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 132)
+                    .accessibilityHidden(true)
+                Text(verbatim: "Nageire")
+                    .font(.largeTitle.bold())
+                    .padding(.top, 24)
+                Text("Toss in your thoughts, arrange them later.")
+                    .font(.subheadline)
+                    .foregroundStyle(.ink2)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
+                Spacer(minLength: 40)
+                middle
+                Button {
+                    didCopy = false
+                    signInTask = Task { await model.signIn() }
+                } label: {
+                    Text(buttonTitle)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.primary)
+                .disabled(model.state == .requestingCode)
+                .padding(.top, 40)
+            }
+        }
+    }
+
     private func authorization(_ code: DeviceCode) -> some View {
-        Text("Enter this code on GitHub")
-            .font(.headline)
-        Text(verbatim: code.userCode)
-            .font(.system(.largeTitle, design: .monospaced).bold())
-            .textSelection(.enabled)
-        Button(didCopy ? "Copied" : "Copy code", systemImage: didCopy ? "checkmark" : "doc.on.doc") {
-            copy(code.userCode)
-            didCopy = true
+        FitsOrScrolls {
+            VStack(spacing: 20) {
+                StepList(current: 1)
+                VStack(spacing: 12) {
+                    DeviceCodeCard(code: code.userCode)
+                    footnote("Pressing “Open GitHub” also puts the code on the clipboard.")
+                }
+                VStack(spacing: 10) {
+                    Button {
+                        copy(code.userCode)
+                        openURL(code.verificationURL)
+                    } label: {
+                        Label("Open GitHub", systemImage: "arrow.up.right.square")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.primary)
+                    // Stays for a person who opens GitHub on another device.
+                    Button {
+                        copy(code.userCode)
+                        didCopy = true
+                    } label: {
+                        Label(didCopy ? "Copied" : "Copy code", systemImage: didCopy ? "checkmark" : "doc.on.doc")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.secondary)
+                }
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Waiting for authorization…")
+                }
+                .font(.footnote)
+                .foregroundStyle(.ink2)
+                Spacer(minLength: 20)
+                // GitHub's device authorization page shows neither the app's logo nor its description,
+                // so the user learns here what that page will ask for.
+                footnote("GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on.")
+            }
         }
-        Button("Open GitHub") { openURL(code.verificationURL) }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-        HStack(spacing: 8) {
-            ProgressView()
-            Text("Waiting for authorization…")
-                .foregroundStyle(.secondary)
-        }
-        // GitHub's device authorization page shows neither the app's logo nor its description,
-        // so the user learns here what that page will ask for.
-        Text("GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on.")
+    }
+
+    private func footnote(_ text: LocalizedStringKey) -> some View {
+        Text(text)
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.ink2)
             .multilineTextAlignment(.center)
-        Button("Cancel", role: .cancel) { signInTask?.cancel() }
     }
 
     private func message(for failure: SignInModel.Failure) -> LocalizedStringKey {
@@ -129,4 +146,51 @@ struct SignInView: View {
         UIPasteboard.general.string = text
         #endif
     }
+}
+
+private extension View {
+    /// Paper to the edges, with the content at the gutter and no wider than a phone.
+    func signInScreen() -> some View {
+        padding(Spacing.gutter)
+            .frame(maxWidth: 420)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(.ink)
+            .background(.paper)
+            #if os(macOS)
+            .navigationTitle(Text(verbatim: "Nageire"))
+            #endif
+            .toolbarTitleDisplayMode(.inline)
+    }
+}
+
+/// A layout that spreads over the height it is given, and scrolls at a text size where it does not fit.
+private struct FitsOrScrolls<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                content()
+                    .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            // The shadow of the primary button falls outside the content.
+            .scrollClipDisabled()
+        }
+    }
+}
+
+#Preview("Sign in") {
+    NavigationStack {
+        SignInView(model: AppModel.sample(.signedOut).makeSignInModel())
+    }
+}
+
+#Preview("Device code") {
+    let model = AppModel.sample(.signedOut).makeSignInModel()
+    NavigationStack {
+        SignInView(model: model)
+    }
+    // The sample's GitHub never authorizes, so the screen stays on the code.
+    .task { await model.signIn() }
 }

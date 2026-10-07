@@ -231,16 +231,6 @@
         }
       }
     },
-    "Enter this code on GitHub" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このコードを GitHub で入力してください"
-          }
-        }
-      }
-    },
     "GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on." : {
       "localizations" : {
         "ja" : {
@@ -397,6 +387,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub で開く"
+          }
+        }
+      }
+    },
+    "Pressing “Open GitHub” also puts the code on the clipboard." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「GitHub を開く」を押すと、コードはクリップボードにも入ります。"
           }
         }
       }
