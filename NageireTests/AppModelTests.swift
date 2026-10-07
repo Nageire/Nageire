@@ -105,18 +105,21 @@ struct AppModelTests {
         #expect(api.createFileAttempts.map(\.repository) == ["octocat/notes"])
     }
 
-    @Test(.timeLimit(.minutes(5))) func savingANoteKeepsItOnTheDeviceAndSendsItToTheChosenRepository() async throws {
+    @Test(.timeLimit(.minutes(5))) func savingANoteKeepsItOnTheDeviceSendsItToTheChosenRepositoryAndRecordsTheSend() async throws {
         let model = model()
         try model.completeSignIn(with: .sample)
         model.select(Repository(owner: "octocat", name: "notes"))
 
         try model.saveNote(body: "Hello")
         #expect(model.outbox.pendingCount == 1)
+        #expect(model.lastSentAt == nil)
         while model.outbox.pendingCount > 0 {
             await Task.yield()
         }
 
         #expect(api.createFileAttempts.count == 1)
+        #expect(model.lastSentAt != nil)
+        #expect(self.model().lastSentAt == model.lastSentAt)
     }
 
     @Test func notesStayOnTheDeviceUnsentAfterSigningOut() async throws {
@@ -203,12 +206,14 @@ struct AppModelTests {
 
         #expect(model.notes().map(\.body) == ["Edited"])
         #expect(model.notes().map(\.isPending) == [true])
+        #expect(model.lastSentAt == nil)
 
         await model.syncNotes()
 
         #expect(model.notes().map(\.body) == ["Edited"])
         #expect(model.notes().map(\.isPending) == [false])
         #expect(try api.remoteNotes.get()[remotePath]?.hasSuffix("\n\nEdited\n") == true)
+        #expect(model.lastSentAt != nil)
     }
 
     @Test func aDeletedNoteLeavesTheListAtOnceAndIsThenRemovedFromGitHub() async throws {
