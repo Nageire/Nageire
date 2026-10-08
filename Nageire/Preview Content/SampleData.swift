@@ -23,6 +23,9 @@ enum SampleData {
         ![ito.jpg](ito.jpg)
         """
 
+    /// When GitHub last took a note: this morning, after the note of 7:40 and before the unsent one.
+    static var lastSentAt: Date { time(daysAgo: 0, 9, 14) }
+
     /// The time of a day counted back from `now`.
     private static func time(daysAgo: Int, _ hour: Int, _ minute: Int, asOf now: Date = .now, calendar: Calendar = .current) -> Date {
         let day = calendar.date(byAdding: .day, value: -daysAgo, to: calendar.startOfDay(for: now)) ?? now
@@ -148,6 +151,9 @@ extension AppModel {
         defaults.removePersistentDomain(forName: suite)
         if scene == .stream {
             defaults.set(SampleData.draft, forKey: AppModel.Keys.draft)
+        }
+        if notes.contains(where: { !$0.isPending }) {
+            defaults.set(SampleData.lastSentAt, forKey: AppModel.Keys.lastSentAt)
         }
         let model = AppModel(
             configuration: GitHubAppConfiguration(clientID: "sample", slug: "nageire"),
