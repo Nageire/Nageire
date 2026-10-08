@@ -26,6 +26,8 @@ struct StreamView: View {
         let notes = model.notes()
         NavigationSplitView {
             list(of: notes)
+                // The empty states would otherwise end with their content, and the stream's paper with them.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.surfaceStream)
                 // Above the list and not in it: the refusal has to show over an empty stream too,
                 // which is where a refused deletion leaves it.
@@ -136,6 +138,8 @@ struct StreamView: View {
                     DraftRow(text: draft) { newNoteRequests.request() }
                         .listRowInsets(.stream)
                         .listRowSeparatorTint(.hairline)
+                        // The list draws a rule above its first row, which the day headings hide and this row would show under the title.
+                        .listRowSeparator(.hidden, edges: .top)
                         .listRowBackground(Color.clear)
                         .selectionDisabled()
                 }
