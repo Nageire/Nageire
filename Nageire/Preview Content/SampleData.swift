@@ -23,12 +23,17 @@ enum SampleData {
         ![ito.jpg](ito.jpg)
         """
 
+    /// The time of a day counted back from `now`.
+    private static func time(daysAgo: Int, _ hour: Int, _ minute: Int, asOf now: Date = .now, calendar: Calendar = .current) -> Date {
+        let day = calendar.date(byAdding: .day, value: -daysAgo, to: calendar.startOfDay(for: now)) ?? now
+        return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
+    }
+
     /// The notes of the stream, newest first. Their times are counted back from `now`, so that
     /// the first two days are today and yesterday whenever the sample is shown. The first note is unsent.
     static func notes(asOf now: Date = .now, calendar: Calendar = .current) -> [NoteEntry] {
         func time(daysAgo: Int, _ hour: Int, _ minute: Int) -> Date {
-            let day = calendar.date(byAdding: .day, value: -daysAgo, to: calendar.startOfDay(for: now)) ?? now
-            return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
+            Self.time(daysAgo: daysAgo, hour, minute, asOf: now, calendar: calendar)
         }
         func entry(_ text: (_ folder: String) -> String, at createdAt: Date, editedAt: Date? = nil, suffix: String, isPending: Bool = false) -> NoteEntry {
             // A note's files are in the folder named like the note, beside it.
