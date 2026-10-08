@@ -80,6 +80,14 @@ The words of item 11 go in with the screen that shows them.
 
 ## Phase 2: the editor (`feature/redesign-editor`)
 
+Its pull requests, in order, with the items each carries:
+
+- `feature/redesign-editor-view`: 1 up to the faint marks, in the toss sheet and in the note screen's edit mode, with the thumbnails as attachments. The raw line of an image and the address of a link stay visible here.
+- `feature/redesign-editor-hiding`: the rest of 1, the raw image line and the link's brackets and address shown only on the line that holds the caret. ui-guide.md names this the hardest piece and has it come last.
+- `feature/redesign-editor-lists`: 2 and 3, since the accessory bar and the Format menu insert the marks that Return continues.
+- `feature/redesign-editor-surface`: 4, 5, and 6. A tapped checkbox is an edit, and an edit is saved as typed, so the three arrive together.
+- `feature/redesign-editor`: 7 over the whole phase.
+
 1. The TextKit 2 text view in a representable for iOS and macOS, with the Markdown it holds styled in place: headings, emphasis, code, list markers, task checkboxes, links with faint marks, and the raw line of an image or the address of a link shown only while the caret is on that line.
 2. List continuation on Return, and an empty item ending the list.
 3. The accessory bar on iOS and the Format menu with Command-B, Command-I, and Command-K on macOS.
