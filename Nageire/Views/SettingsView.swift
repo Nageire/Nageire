@@ -68,11 +68,16 @@ struct SettingsView: View {
             // The macOS settings window can be opened from the sign-in screen, where only the look applies.
             .disabled(!model.isSignedIn)
             Section("Writing") {
-                Picker("Body typeface", selection: $serifBody) {
-                    Text("Sans").tag(false)
-                    Text("Serif").tag(true)
+                // The form shows a segmented picker across the row with no label on iPhone, and the design puts the label beside the control.
+                LabeledContent("Body typeface") {
+                    Picker("Body typeface", selection: $serifBody) {
+                        Text("Sans").tag(false)
+                        Text("Serif").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .pickerStyle(.segmented)
             }
             // The on-device model is not wired until phase 5, so the section reads as on a device without it.
             Section {
@@ -126,6 +131,7 @@ struct SettingsView: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.ink2)
+                    .accessibilityHidden(true)
             }
         }
         .contentShape(.rect)

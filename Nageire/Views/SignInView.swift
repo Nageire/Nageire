@@ -8,6 +8,8 @@ import UIKit
 /// The first screen, with the code screen pushed over it while GitHub waits for the code to be entered.
 struct SignInView: View {
     @State private var model: SignInModel
+    /// Cancelled only by going back from the code screen. On iOS the front disappears while the
+    /// code screen covers it, so cancelling on its disappearance ended every sign-in a moment after it began.
     @State private var signInTask: Task<Void, Never>?
     @State private var didCopy = false
     @Environment(\.openURL) private var openURL
@@ -23,7 +25,6 @@ struct SignInView: View {
                 authorization(code)
                     .signInScreen()
             }
-            .onDisappear { signInTask?.cancel() }
     }
 
     /// The code GitHub is waiting for, while it is. Going back sets it to nil, which ends the wait.

@@ -28,6 +28,7 @@ struct NoteRow: View {
                         } icon: {
                             Image(systemName: "paperclip")
                         }
+                        .labelStyle(.tight)
                         .accessibilityLabel(Text("\(note.attachmentCount) attachments"))
                     }
                     if note.isPending {

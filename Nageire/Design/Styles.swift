@@ -83,6 +83,20 @@ private struct PillLabelStyle: LabelStyle {
     }
 }
 
+/// A glyph against its text, as a count sits against its paperclip. The default style sets them a word apart.
+struct TightLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 3) {
+            configuration.icon
+            configuration.title
+        }
+    }
+}
+
+extension LabelStyle where Self == TightLabelStyle {
+    static var tight: TightLabelStyle { TightLabelStyle() }
+}
+
 /// Dims a button, fill and label together, while it is pressed, and halves it while it is disabled.
 private struct Dimming: ViewModifier {
     let isPressed: Bool
