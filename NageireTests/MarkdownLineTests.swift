@@ -56,4 +56,43 @@ struct MarkdownLineTests {
         #expect(MarkdownLine("見て ![枝](kuwa.jpg)").kind == .text)
         #expect(MarkdownLine("![枝](kuwa.jpg) を見て").kind == .text)
     }
+
+    /// Each span as its text and its role, readable in a failure.
+    private func spans(of line: String) -> [String] {
+        MarkdownLine(line).spans.map { "\(line[$0.range]) \($0.role)" }
+    }
+
+    @Test func theMarksOfEmphasisAndCodeAreSetApartFromWhatTheyEnclose() {
+        #expect(spans(of: "今日は**枝を二本**だけ。*余白*と`code`") == [
+            "** mark", "枝を二本 bold", "** mark",
+            "* mark", "余白 italic", "* mark",
+            "` mark", "code code", "` mark",
+        ])
+    }
+
+    @Test func aLinkIsItsNameAndItsAddressBetweenMarks() {
+        #expect(spans(of: "次は[教室の予定](https://example.com/s)を見る") == [
+            "[ mark", "教室の予定 linkText", "]( mark", "https://example.com/s linkAddress", ") mark",
+        ])
+    }
+
+    @Test func aMarkInsideCodeIsText() {
+        #expect(spans(of: "`a * b` と *c*") == ["` mark", "a * b code", "` mark", "* mark", "c italic", "* mark"])
+    }
+
+    @Test func anUnderscoreInsideAWordIsNotAMark() {
+        #expect(MarkdownLine("IMG_0412_a.jpeg を送る").spans.isEmpty)
+        #expect(MarkdownLine("_強調_ する").spans.map(\.role) == [.mark, .italic, .mark])
+    }
+
+    @Test func theSpansOfAnItemStartAfterItsMarker() {
+        let line = "- *余白を恐れない*"
+
+        #expect(MarkdownLine(line).spans.map { String(line[$0.range]) } == ["*", "余白を恐れない", "*"])
+    }
+
+    @Test func anUnpairedMarkIsText() {
+        #expect(MarkdownLine("2 * 3 = 6").spans.isEmpty)
+        #expect(MarkdownLine("**開いたまま").spans.isEmpty)
+    }
 }
