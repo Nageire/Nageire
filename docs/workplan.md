@@ -80,6 +80,8 @@ The words of item 11 go in with the screen that shows them.
 
 ## Phase 2: the editor (`feature/redesign-editor`)
 
+The setting that shows the marks in full ink, decided in ux-redesign.md, is in none of these pull requests. It is built as a pull request of its own when the open question there, whether the other marks hide off the current line, is settled, since the two decide what the setting shows.
+
 Its pull requests, in order, with the items each carries:
 
 - `feature/redesign-editor-view`: 1 up to the faint marks, in the toss sheet and in the note screen's edit mode, with the thumbnails under their lines. The raw line of an image and the address of a link stay visible here.
