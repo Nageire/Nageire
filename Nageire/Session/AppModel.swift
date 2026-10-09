@@ -107,6 +107,12 @@ final class AppModel {
         library.notes(including: outbox.pending, unsent: outbox.changes).filter { $0.id != pendingDeletion?.id }
     }
 
+    /// The file an image line of the note links to, if the device has it.
+    func attachment(of note: NoteEntry, linked link: String) -> Data? {
+        guard let path = note.attachmentPath(linked: link) else { return nil }
+        return try? library.attachment(at: path)
+    }
+
     /// The model of the sign-in screen, which hands its tokens to this app.
     func makeSignInModel() -> SignInModel {
         SignInModel(flow: DeviceFlow(oauth: oauth), onAuthorized: completeSignIn)

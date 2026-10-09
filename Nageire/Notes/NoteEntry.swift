@@ -21,6 +21,12 @@ struct NoteEntry: Identifiable, Hashable {
 
     var id: String { path }
 
+    /// The directory the note is in, `notes/YYYY/MM/`, which its image lines link from.
+    var directory: Substring { path[..<fileNameStart(of: path)] }
+    /// The folder beside the note, where its files are: the note's path without `.md`.
+    var folderPath: Substring { path.hasSuffix(".md") ? path.dropLast(3) : Substring(path) }
+    var folderName: Substring { folderPath[fileNameStart(of: path)...] }
+
     init(path: String, contents: String, isPending: Bool) {
         self.path = path
         self.contents = contents
@@ -51,8 +57,7 @@ struct NoteEntry: Identifiable, Hashable {
             let markdown = MarkdownLine(line)
             // An image line is nothing to read, since its name is not text.
             if line.hasPrefix("![") {
-                // A link with a scheme points elsewhere; a relative one is a file in the folder beside the note.
-                if case let .image(file, path) = markdown.kind, !path.contains("://") {
+                if case let .image(file, path) = markdown.kind, isAttachmentLink(decoded(path)) {
                     attachments += 1
                     firstFile = firstFile ?? file
                 }
@@ -95,6 +100,23 @@ struct NoteEntry: Identifiable, Hashable {
         case (nil, _?): false
         default: a.path[fileNameStart(of: a.path)...] > b.path[fileNameStart(of: b.path)...]
         }
+    }
+
+    /// The repository path of the file an image line links to. Nil for a link that points out of the note's directory.
+    func attachmentPath(linked link: String) -> String? {
+        let link = Self.decoded(link)
+        guard Self.isAttachmentLink(link) else { return nil }
+        return directory + link
+    }
+
+    /// Another tool may have written the name with its spaces encoded. Decoded before the link is judged, so that an encoded `..` is judged as `..`.
+    private static func decoded(_ link: String) -> String {
+        link.removingPercentEncoding ?? link
+    }
+
+    /// A link with a scheme points elsewhere, as does one that starts at the root or climbs out of the directory.
+    private static func isAttachmentLink(_ link: String) -> Bool {
+        !link.contains("://") && !link.hasPrefix("/") && !link.split(separator: "/").contains("..")
     }
 
     /// The text as the editor starts with it. Unlike `body` it keeps the indentation of the first line,

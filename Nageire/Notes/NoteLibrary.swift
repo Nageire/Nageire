@@ -72,6 +72,11 @@ final class NoteLibrary {
         }
     }
 
+    /// A file of a note that the device has, at its repository path: waiting to be sent, or fetched. Nil otherwise.
+    func attachment(at path: String) throws -> Data? {
+        try store.attachment(at: path)
+    }
+
     func removeAll() {
         generation += 1
         try? store.removeLibrary()

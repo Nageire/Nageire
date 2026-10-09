@@ -59,6 +59,14 @@ final class NoteOutbox {
         try change(entry, to: .delete(path: entry.path))
     }
 
+    /// Keeps a file in the folder beside the note, under its own name, and returns the line that links to it.
+    func attach(_ contents: Data, named name: String, to entry: NoteEntry) throws -> String {
+        let folder = String(entry.folderPath)
+        let fileName = Attachment.fileName(for: name, avoiding: Set(try store.attachmentNames(inFolder: folder)))
+        try store.addAttachment(StoredFile(path: "\(folder)/\(fileName)", contents: contents))
+        return Attachment.line(name: fileName, folder: entry.folderName)
+    }
+
     private func change(_ entry: NoteEntry, to change: NoteChange) throws {
         try store.record(change)
         // A note still pending may be on GitHub already: its commit can land while the response

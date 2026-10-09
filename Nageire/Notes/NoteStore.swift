@@ -38,6 +38,13 @@ protocol NoteStore {
     /// A different change recorded for the path in the meantime stays.
     func resolve(_ change: NoteChange) throws
 
+    /// Keeps a file of a note, at its repository path, until GitHub has it.
+    func addAttachment(_ file: StoredFile) throws
+    /// The names of the files in a note's folder that the device has: waiting, and in the library.
+    func attachmentNames(inFolder folder: String) throws -> [String]
+    /// A file of a note at its repository path, waiting or in the library. Nil when the device does not have it.
+    func attachment(at path: String) throws -> Data?
+
     /// The device's copy of the files GitHub holds.
     func library() throws -> [StoredFile]
     func saveToLibrary(_ file: StoredFile) throws
@@ -46,11 +53,12 @@ protocol NoteStore {
 }
 
 /// Keeps every note as a file on the device: `outbox` until GitHub has it, `library` for what GitHub holds,
-/// and `updates` and `deletions` for changes to what GitHub holds.
+/// `updates` and `deletions` for changes to what GitHub holds, and `attachments` for a note's files until GitHub has them.
 struct FileNoteStore: NoteStore {
     let directory: URL
 
     private var outbox: URL { directory.appending(path: "outbox", directoryHint: .isDirectory) }
+    private var attachments: URL { directory.appending(path: "attachments", directoryHint: .isDirectory) }
     private var libraryDirectory: URL { directory.appending(path: "library", directoryHint: .isDirectory) }
     // An update keeps the whole edited file outside the library, which is emptied at sign-out
     // while the edit still has to be sent.
@@ -113,6 +121,32 @@ struct FileNoteStore: NoteStore {
             try? FileManager.default.removeItem(at: libraryDirectory.appending(path: path))
             try? FileManager.default.removeItem(at: deletions.appending(path: path))
         }
+    }
+
+    func addAttachment(_ file: StoredFile) throws {
+        try write(file.contents, to: attachments.appending(path: file.path))
+    }
+
+    func attachmentNames(inFolder folder: String) throws -> [String] {
+        try [attachments, libraryDirectory].flatMap { root -> [String] in
+            do {
+                return try FileManager.default.contentsOfDirectory(atPath: root.appending(path: folder).path)
+            } catch CocoaError.fileReadNoSuchFile {
+                return []
+            }
+        }
+    }
+
+    func attachment(at path: String) throws -> Data? {
+        for root in [attachments, libraryDirectory] {
+            do {
+                // Mapped, since the bytes are read on the main actor and a photo has megabytes of them.
+                return try Data(contentsOf: root.appending(path: path), options: .mappedIfSafe)
+            } catch CocoaError.fileReadNoSuchFile {
+                continue
+            }
+        }
+        return nil
     }
 
     func library() throws -> [StoredFile] {
