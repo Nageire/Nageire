@@ -71,6 +71,10 @@ struct MarkdownStyler {
     /// The attributes of text that no mark touches, which are also the typing attributes.
     let base: [NSAttributedString.Key: Any]
     private let marks: [NSAttributedString.Key: Any] = [.foregroundColor: PlatformColor.textMark]
+    /// What hides a run off the caret's line: a font too small to give it a width or a height, and no ink.
+    /// The characters stay in the string, and the line lays out as if they were not there; an image line,
+    /// hidden through its newline, keeps no height at all.
+    private let hidden: [NSAttributedString.Key: Any] = [.font: PlatformFont.systemFont(ofSize: 0.01), .foregroundColor: PlatformColor.clear]
     private let blankStyle: NSParagraphStyle
     /// The widths the design fixes, measured once: the space in the body font, and the space after each heading's marks.
     private let spaceWidth: CGFloat
@@ -87,14 +91,18 @@ struct MarkdownStyler {
         headingSpaceWidths = fonts.headings.map { Self.width(of: " ", in: $0) }
     }
 
-    /// - Parameter isFirst: The paragraph opens the note, so a heading there has no space above.
-    func styled(_ string: String, isFirst: Bool) -> NSAttributedString {
+    /// - Parameters:
+    ///   - isFirst: The paragraph opens the note, so a heading there has no space above.
+    ///   - holdsCaret: The caret is on the paragraph, which shows the raw line of an image and the marks and address of a link.
+    func styled(_ string: String, isFirst: Bool, holdsCaret: Bool) -> NSAttributedString {
         // A paragraph ends in its line break, which a file from elsewhere may write as CRLF: one character to Swift.
         let text = string.last?.isNewline == true ? string.dropLast() : Substring(string)
         let line = MarkdownLine(text)
         let styled = NSMutableAttributedString(string: string, attributes: base)
         let whole = NSRange(location: 0, length: styled.length)
         let prefix = NSRange(line.prefix, in: string)
+        /// The runs in sight only under the caret: an image's raw line, a link's marks and address.
+        let caretOnly = holdsCaret ? marks : hidden
         switch line.kind {
         case .text:
             break
@@ -136,15 +144,17 @@ struct MarkdownStyler {
             }
             styled.addAttribute(.paragraphStyle, value: style, range: whole)
         case let .image(file, _):
-            // The raw line stays in sight, in the color of a mark, with the thumbnail under it.
-            styled.addAttributes(marks, range: whole)
+            // Off the caret the paragraph is its thumbnail alone.
+            styled.addAttributes(caretOnly, range: whole)
             styled.addAttribute(.lineDecoration, value: LineDecoration.thumbnail(file: file), range: whole)
         }
         for span in line.spans {
             let range = NSRange(span.range, in: string)
             switch span.role {
-            case .mark, .linkAddress:
+            case .mark:
                 styled.addAttributes(marks, range: range)
+            case .linkMark, .linkAddress:
+                styled.addAttributes(caretOnly, range: range)
             case .bold:
                 styled.addAttribute(.font, value: fonts.bold, range: range)
             case .italic:

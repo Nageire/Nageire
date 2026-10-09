@@ -16,8 +16,10 @@ struct MarkdownLine: Equatable {
     }
 
     enum Role: Equatable {
-        /// A character of the syntax: `**`, a backtick, the brackets of a link.
+        /// A character of the syntax that stays in sight: `**`, a backtick.
         case mark
+        /// A bracket or a parenthesis of a link, shown only with the caret on the line, as the address is.
+        case linkMark
         case bold
         case italic
         case code
@@ -103,11 +105,11 @@ struct MarkdownLine: Equatable {
         each(link) { match in
             let (_, name, address) = match.output
             return [
-                Span(range: match.range.lowerBound..<name.startIndex, role: .mark),
+                Span(range: match.range.lowerBound..<name.startIndex, role: .linkMark),
                 span(name, .linkText),
-                Span(range: name.endIndex..<address.startIndex, role: .mark),
+                Span(range: name.endIndex..<address.startIndex, role: .linkMark),
                 span(address, .linkAddress),
-                Span(range: address.endIndex..<match.range.upperBound, role: .mark),
+                Span(range: address.endIndex..<match.range.upperBound, role: .linkMark),
             ]
         }
         for (regex, role) in [(bold, Role.bold), (italic, .italic)] {

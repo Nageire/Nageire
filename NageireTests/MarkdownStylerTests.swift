@@ -15,8 +15,8 @@ struct MarkdownStylerTests {
     private let styler = MarkdownStyler(fonts: EditorFonts(serif: false))
     #endif
 
-    private func styled(_ text: String, isFirst: Bool = false) -> NSAttributedString {
-        styler.styled(text, isFirst: isFirst)
+    private func styled(_ text: String, isFirst: Bool = false, holdsCaret: Bool = true) -> NSAttributedString {
+        styler.styled(text, isFirst: isFirst, holdsCaret: holdsCaret)
     }
 
     private func paragraphStyle(of text: String, isFirst: Bool = false) -> NSParagraphStyle? {
@@ -29,6 +29,10 @@ struct MarkdownStylerTests {
 
     private func color(in styled: NSAttributedString, at index: Int) -> PlatformColor? {
         styled.attribute(.foregroundColor, at: index, effectiveRange: nil) as? PlatformColor
+    }
+
+    private func isHidden(_ styled: NSAttributedString, at index: Int) -> Bool {
+        color(in: styled, at: index) == .clear && (font(in: styled, at: index)?.pointSize ?? 1) < 1
     }
 
     @Test func theStringStaysAsItWas() {
@@ -83,7 +87,7 @@ struct MarkdownStylerTests {
         #expect(font(in: styled, at: 0) == styler.fonts.body)
     }
 
-    @Test func aLinkIsItsNameInTheAccentWithTheAddressFaint() {
+    @Test func aLinkUnderTheCaretIsItsNameInTheAccentWithTheAddressFaint() {
         let styled = styled("[予定](https://example.com)\n")
 
         #expect(color(in: styled, at: 0) == .textMark)
@@ -92,11 +96,48 @@ struct MarkdownStylerTests {
         #expect(color(in: styled, at: 6) == .textMark)
     }
 
-    @Test func anImageLineIsFaintAndCarriesItsThumbnail() {
+    @Test func anImageLineUnderTheCaretIsFaintAndCarriesItsThumbnail() {
         let styled = styled("![枝](2026-10-03T001200Z-0a05/kuwa.jpg)\n")
 
         #expect(color(in: styled, at: 0) == .textMark)
         #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg"))
+    }
+
+    @Test func aLinkOffTheCaretsLineIsItsNameAlone() {
+        let styled = styled("[予定](https://example.com)\n", holdsCaret: false)
+
+        #expect(isHidden(styled, at: 0))
+        #expect(color(in: styled, at: 1) == .accentText)
+        #expect(isHidden(styled, at: 6))
+    }
+
+    @Test func anEmphasisMarkStaysFaintOffTheCaretsLine() {
+        let styled = styled("**枝**\n", holdsCaret: false)
+
+        #expect(color(in: styled, at: 0) == .textMark)
+    }
+
+    @Test func anImageLineOffTheCaretsLineIsItsThumbnailAlone() {
+        let styled = styled("![枝](kuwa.jpg)\n", holdsCaret: false)
+
+        #expect(isHidden(styled, at: 0))
+        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg"))
+    }
+
+    @Test func aHiddenRunTakesNoRoomInTheLayout() {
+        let storage = NSTextContentStorage()
+        let manager = NSTextLayoutManager()
+        storage.addTextLayoutManager(manager)
+        manager.textContainer = NSTextContainer(size: CGSize(width: 320, height: 1000))
+        storage.textStorage = NSTextStorage(attributedString: styled("![枝](kuwa.jpg)\n", holdsCaret: false))
+        manager.ensureLayout(for: storage.documentRange)
+        var textHeight: CGFloat = 0
+        manager.enumerateTextLayoutFragments(from: nil, options: [.ensuresLayout]) { fragment in
+            textHeight = fragment.textLineFragments.map(\.typographicBounds.height).reduce(0, +)
+            return false
+        }
+
+        #expect(textHeight < 1)
     }
 
     @Test func anImageLineThatEndsInCRLFCarriesItsThumbnailToo() {
