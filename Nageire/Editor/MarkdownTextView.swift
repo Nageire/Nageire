@@ -9,6 +9,10 @@ struct MarkdownTextView {
     var serif = false
     /// Changes each time the cursor should go to the view: when it appears, and again on request.
     var focusRequest = 0
+    /// What the Format menu holds to reach the view; the view's coordinator goes into it.
+    var requests: EditorRequests?
+    /// Whether the view has the keyboard, for the Format menu to be offered only then.
+    var isFocused: Binding<Bool> = .constant(false)
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -16,6 +20,7 @@ struct MarkdownTextView {
 
     final class Coordinator: NSObject, NSTextContentStorageDelegate, NSTextLayoutManagerDelegate {
         var text: Binding<String>
+        var isFocused: Binding<Bool> = .constant(false)
         var serif = false
         var focusRequest = 0
         /// Set with the view, since the fonts follow its text size.
@@ -61,7 +66,29 @@ struct MarkdownTextView {
         }
 
         private func caretParagraphStart(in storage: NSTextStorage) -> Int {
-            paragraph(at: view?.selectionStart ?? 0, in: storage).location
+            paragraph(at: view?.selection.location ?? 0, in: storage).location
+        }
+
+        /// The view took or gave up the keyboard. It can do so inside a SwiftUI update, where state is not written.
+        func focusDidChange(to isFocused: Bool) {
+            Task { @MainActor in
+                self.isFocused.wrappedValue = isFocused
+            }
+        }
+
+        /// Carries out what the accessory bar or the Format menu asks, at the selection.
+        func perform(_ command: EditorCommand) {
+            guard let view, let storage = view.contentStorage?.textStorage,
+                  let edit = MarkdownEditing.edit(for: command, in: storage.string, selection: view.selection) else { return }
+            view.apply(edit)
+        }
+
+        /// The next marker, or the end of the list, when Return is pressed in a list; false where Return is a line break.
+        func handleReturn(at selection: NSRange) -> Bool {
+            guard let view, let storage = view.contentStorage?.textStorage,
+                  let edit = MarkdownEditing.returnEdit(in: storage.string, selection: selection) else { return false }
+            view.apply(edit)
+            return true
         }
 
         /// The paragraph around a location, which an edit since may have moved past the end.
@@ -112,6 +139,8 @@ extension MarkdownTextView: UIViewRepresentable {
         view.textLayoutManager?.delegate = coordinator
         view.contentStorage?.delegate = coordinator
         coordinator.view = view
+        coordinator.isFocused = isFocused
+        requests?.editor = coordinator
         coordinator.serif = serif
         coordinator.palette = DecorationPalette(accent: view.tintColor)
         coordinator.pixelLength = 1 / view.traitCollection.displayScale
@@ -121,12 +150,26 @@ extension MarkdownTextView: UIViewRepresentable {
         view.onTextSizeChange = { [weak coordinator] view in
             coordinator?.apply(EditorFonts(serif: coordinator?.serif ?? false, traits: view.traitCollection), to: view)
         }
+        // The design's bar, 44 on paper-raised with a hairline, is the view's own accessory: the keyboard
+        // toolbar of SwiftUI draws its own bar around what is put in it.
+        let bar = UIHostingController(rootView: AccessoryBar(
+            perform: { [weak coordinator] in coordinator?.perform($0) },
+            hideKeyboard: { [weak view] in view?.resignFirstResponder() }
+        ))
+        bar.sizingOptions = .intrinsicContentSize
+        bar.view.backgroundColor = .clear
+        // The keyboard takes an accessory's height from its frame, which a hosted view leaves at zero.
+        bar.view.frame.size.height = Spacing.control
+        bar.view.autoresizingMask = .flexibleWidth
+        view.inputAccessoryView = bar.view
+        view.accessoryBar = bar
         return view
     }
 
     func updateUIView(_ view: NoteTextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.text = $text
+        coordinator.isFocused = isFocused
         if view.text != text {
             view.text = text
         }
@@ -149,12 +192,28 @@ extension MarkdownTextView.Coordinator: UITextViewDelegate {
     func textViewDidChangeSelection(_ textView: UITextView) {
         selectionDidChange()
     }
+
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        focusDidChange(to: true)
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        focusDidChange(to: false)
+    }
+
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText replacement: String) -> Bool {
+        // While kana are being composed, Return settles them; the view handles that.
+        guard replacement == "\n", textView.markedTextRange == nil else { return true }
+        return !handleReturn(at: range)
+    }
 }
 
 final class NoteTextView: UITextView {
     var onTextSizeChange: ((NoteTextView) -> Void)?
+    /// The controller of the accessory bar, which its view does not keep alive.
+    var accessoryBar: UIViewController?
     /// One name over both platforms' selection, for the coordinator.
-    var selectionStart: Int { selectedRange.location }
+    var selection: NSRange { selectedRange }
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
 
@@ -188,6 +247,15 @@ final class NoteTextView: UITextView {
             wantsFocus = true
         }
     }
+
+    /// Replaces through the text input system, which registers the undo and tells the delegate.
+    func apply(_ edit: TextEdit) {
+        guard let start = position(from: beginningOfDocument, offset: edit.range.location),
+              let end = position(from: start, offset: edit.range.length),
+              let range = textRange(from: start, to: end) else { return }
+        replace(range, withText: edit.replacement)
+        selectedRange = edit.selection
+    }
 }
 #else
 extension MarkdownTextView: NSViewRepresentable {
@@ -208,6 +276,8 @@ extension MarkdownTextView: NSViewRepresentable {
         view.textLayoutManager?.delegate = coordinator
         view.contentStorage?.delegate = coordinator
         coordinator.view = view
+        coordinator.isFocused = isFocused
+        requests?.editor = coordinator
         coordinator.serif = serif
         coordinator.palette = DecorationPalette(accent: .controlAccentColor)
         // The view has no window yet; the main screen's scale is the one it will almost always get.
@@ -226,6 +296,7 @@ extension MarkdownTextView: NSViewRepresentable {
         guard let view = scrollView.documentView as? NoteTextView else { return }
         let coordinator = context.coordinator
         coordinator.text = $text
+        coordinator.isFocused = isFocused
         if view.string != text {
             view.string = text
         }
@@ -249,13 +320,19 @@ extension MarkdownTextView.Coordinator: NSTextViewDelegate {
     func textViewDidChangeSelection(_ notification: Notification) {
         selectionDidChange()
     }
+
+    func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        // While kana are being composed, Return settles them; the view handles that.
+        guard selector == #selector(NSResponder.insertNewline(_:)), !textView.hasMarkedText() else { return false }
+        return handleReturn(at: textView.selectedRange())
+    }
 }
 
 final class NoteTextView: NSTextView {
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
     /// One name over both platforms' selection, for the coordinator.
-    var selectionStart: Int { selectedRange().location }
+    var selection: NSRange { selectedRange() }
 
     var contentStorage: NSTextContentStorage? {
         textContentStorage
@@ -269,12 +346,35 @@ final class NoteTextView: NSTextView {
         }
     }
 
+    // The text delegate hears of editing beginning with the first change, not with the keyboard.
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became {
+            (delegate as? MarkdownTextView.Coordinator)?.focusDidChange(to: true)
+        }
+        return became
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned {
+            (delegate as? MarkdownTextView.Coordinator)?.focusDidChange(to: false)
+        }
+        return resigned
+    }
+
     func focus() {
         if let window {
             window.makeFirstResponder(self)
         } else {
             wantsFocus = true
         }
+    }
+
+    /// Replaces as the input system does, which registers the undo and tells the delegate.
+    func apply(_ edit: TextEdit) {
+        insertText(edit.replacement, replacementRange: edit.range)
+        setSelectedRange(edit.selection)
     }
 }
 #endif
