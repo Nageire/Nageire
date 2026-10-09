@@ -100,7 +100,7 @@ struct MarkdownStylerTests {
         let styled = styled("![枝](2026-10-03T001200Z-0a05/kuwa.jpg)\n")
 
         #expect(color(in: styled, at: 0) == .textMark)
-        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg"))
+        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg", link: "2026-10-03T001200Z-0a05/kuwa.jpg"))
     }
 
     @Test func aLinkOffTheCaretsLineIsItsNameAlone() {
@@ -121,7 +121,7 @@ struct MarkdownStylerTests {
         let styled = styled("![枝](kuwa.jpg)\n", holdsCaret: false)
 
         #expect(isHidden(styled, at: 0))
-        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg"))
+        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg", link: "kuwa.jpg"))
     }
 
     @Test func aHiddenRunTakesNoRoomInTheLayout() {
@@ -143,7 +143,7 @@ struct MarkdownStylerTests {
     @Test func anImageLineThatEndsInCRLFCarriesItsThumbnailToo() {
         let styled = styled("![枝](kuwa.jpg)\r\n")
 
-        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg"))
+        #expect(styled.attribute(.lineDecoration, at: 0, effectiveRange: nil) as? LineDecoration == .thumbnail(file: "kuwa.jpg", link: "kuwa.jpg"))
     }
 
     @Test func aBlankLineIsLowerThanALineOfText() {

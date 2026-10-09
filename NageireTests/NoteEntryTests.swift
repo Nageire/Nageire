@@ -168,4 +168,23 @@ struct NoteEntryTitleTests {
         #expect(entry.attachmentCount == 1)
         #expect(entry.excerpt == "次は教室の予定を見る。")
     }
+
+    @Test func theFolderBesideTheNoteIsNamedLikeItWithoutTheExtension() {
+        let entry = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+
+        #expect(entry.directory == "notes/2026/10/")
+        #expect(entry.folderPath == "notes/2026/10/2026-10-03T135812Z-a1b2")
+        #expect(entry.folderName == "2026-10-03T135812Z-a1b2")
+    }
+
+    @Test func aLinkIntoTheFolderResolvesUnderTheNoteDirectoryAndOneElsewhereDoesNot() {
+        let entry = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+
+        #expect(entry.attachmentPath(linked: "2026-10-03T135812Z-a1b2/IMG_0421.jpeg") == "notes/2026/10/2026-10-03T135812Z-a1b2/IMG_0421.jpeg")
+        #expect(entry.attachmentPath(linked: "2026-10-03T135812Z-a1b2/my%20photo.jpg") == "notes/2026/10/2026-10-03T135812Z-a1b2/my photo.jpg")
+        #expect(entry.attachmentPath(linked: "https://example.com/a.png") == nil)
+        #expect(entry.attachmentPath(linked: "/etc/passwd") == nil)
+        #expect(entry.attachmentPath(linked: "../../secret.jpg") == nil)
+        #expect(entry.attachmentPath(linked: "..%2F..%2Fsecret.jpg") == nil)
+    }
 }

@@ -79,9 +79,10 @@ nonisolated final class CheckboxLayoutFragment: NSTextLayoutFragment {
     }
 }
 
-/// An image's line with its thumbnail under it, and the file's name as a caption.
-/// The file is not on the device yet, so the thumbnail is its frame alone until the attachments arrive.
+/// An image's line with its thumbnail under it, and the file's name and size as a caption.
+/// While the device does not have the file, or has not decoded it yet, the thumbnail is its frame alone.
 nonisolated final class ThumbnailLayoutFragment: NSTextLayoutFragment {
+    let image: CGImage?
     private let caption: CTLine
     private let captionWidth: CGFloat
     private let captionAscent: CGFloat
@@ -90,12 +91,14 @@ nonisolated final class ThumbnailLayoutFragment: NSTextLayoutFragment {
     /// One device pixel, the thickness of the frame.
     private let hairline: CGFloat
 
-    init(textElement: NSTextElement, file: String, font: PlatformFont, palette: DecorationPalette, hairline: CGFloat) {
+    init(textElement: NSTextElement, file: String, thumbnail: Thumbnail?, font: PlatformFont, palette: DecorationPalette, hairline: CGFloat) {
+        image = thumbnail?.image
+        let captionText = thumbnail.map { "\(file) · \($0.size)" } ?? file
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             NSAttributedString.Key(kCTForegroundColorFromContextAttributeName as String): true,
         ]
-        caption = CTLineCreateWithAttributedString(NSAttributedString(string: file, attributes: attributes))
+        caption = CTLineCreateWithAttributedString(NSAttributedString(string: captionText, attributes: attributes))
         var ascent: CGFloat = 0
         captionWidth = CTLineGetTypographicBounds(caption, &ascent, nil, nil)
         captionAscent = ascent
@@ -132,8 +135,22 @@ nonisolated final class ThumbnailLayoutFragment: NSTextLayoutFragment {
         defer { context.restoreGState() }
         let frame = thumbnailRect.offsetBy(dx: point.x, dy: point.y)
         context.addPath(CGPath(roundedRect: frame, cornerWidth: Radius.thumbnail, cornerHeight: Radius.thumbnail, transform: nil))
-        context.setFillColor(palette.paperSunken.cgColor)
-        context.fillPath()
+        if let image {
+            context.saveGState()
+            context.clip()
+            // The image fills the frame and is cut where it overflows.
+            let fill = max(frame.width / CGFloat(image.width), frame.height / CGFloat(image.height))
+            let size = CGSize(width: CGFloat(image.width) * fill, height: CGFloat(image.height) * fill)
+            let drawn = CGRect(x: frame.midX - size.width / 2, y: frame.midY - size.height / 2, width: size.width, height: size.height)
+            // The context's origin is at the top, and an image is drawn from the bottom up: the context is turned over around the frame.
+            context.translateBy(x: 0, y: frame.minY + frame.maxY)
+            context.scaleBy(x: 1, y: -1)
+            context.draw(image, in: drawn)
+            context.restoreGState()
+        } else {
+            context.setFillColor(palette.paperSunken.cgColor)
+            context.fillPath()
+        }
         context.addPath(CGPath(roundedRect: frame.insetBy(dx: hairline / 2, dy: hairline / 2), cornerWidth: Radius.thumbnail, cornerHeight: Radius.thumbnail, transform: nil))
         context.setStrokeColor(palette.hairline.cgColor)
         context.setLineWidth(hairline)

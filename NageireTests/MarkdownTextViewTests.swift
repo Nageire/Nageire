@@ -16,9 +16,11 @@ private final class ReceivedText {
 @MainActor
 struct MarkdownTextViewTests {
     /// A text view with its coordinator as its delegate, the caret where asked, and what its binding received.
-    private func makeView(text: String, caret: Int) -> (view: NoteTextView, coordinator: MarkdownTextCoordinator, received: ReceivedText) {
+    private func makeView(text: String, caret: Int, attachment: @escaping (String) -> Data? = { _ in nil }) -> (view: NoteTextView, coordinator: MarkdownTextCoordinator, received: ReceivedText) {
         let received = ReceivedText(text)
         let coordinator = MarkdownTextCoordinator(text: Binding { received.text } set: { received.text = $0 })
+        // Before the text, as the view does: the first layout of an image line is what starts its decode.
+        coordinator.thumbnails.attachment = attachment
         let view = NoteTextView(usingTextLayoutManager: true)
         view.delegate = coordinator
         view.textLayoutManager?.delegate = coordinator
@@ -95,5 +97,28 @@ struct MarkdownTextViewTests {
 
         #expect(received.text == "- a****")
         #expect(view.selection == NSRange(location: 5, length: 0))
+    }
+
+    @Test func anImageLineIsItsFrameUntilTheFileIsDecodedAndThenShowsTheImage() async throws {
+        let png = pngData(width: 400, height: 300)
+        let (view, coordinator, _) = makeView(text: "![a.png](f/a.png)", caret: 0) { link in link == "f/a.png" ? png : nil }
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 400)
+        let layoutManager = try #require(view.textLayoutManager)
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let before = try #require(layoutManager.textLayoutFragment(for: .zero) as? ThumbnailLayoutFragment)
+
+        #expect(before.image == nil)
+
+        await withCheckedContinuation { continuation in
+            let restyle = coordinator.thumbnails.onDecode
+            coordinator.thumbnails.onDecode = {
+                restyle($0)
+                continuation.resume()
+            }
+        }
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let after = try #require(layoutManager.textLayoutFragment(for: .zero) as? ThumbnailLayoutFragment)
+
+        #expect(after.image != nil)
     }
 }

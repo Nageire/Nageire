@@ -7,6 +7,8 @@ final class InMemoryNoteStore: NoteStore {
     private(set) var files: [String: Data] = [:]
 
     private(set) var recorded: [NoteChange] = []
+    /// The files of notes waiting to be sent, by repository path.
+    private(set) var attachments: [String: Data] = [:]
 
     init(pending: [Note] = []) {
         outbox = pending
@@ -51,7 +53,16 @@ final class InMemoryNoteStore: NoteStore {
         recorded.removeAll { $0 == change }
     }
 
-    func library() throws -> [StoredFile] { files.map { StoredFile(path: $0.key, contents: $0.value) } }
+    func addAttachment(_ file: StoredFile) throws { attachments[file.path] = file.contents }
+
+    func attachmentNames(inFolder folder: String) throws -> [String] {
+        (Array(attachments.keys) + files.keys).filter { $0.hasPrefix(folder + "/") }.map { String($0[fileNameStart(of: $0)...]) }
+    }
+
+    func attachment(at path: String) throws -> Data? { attachments[path] ?? files[path] }
+
+    /// The notes among the files, as `FileNoteStore` lists them; the library holds a note's attachments beside it.
+    func library() throws -> [StoredFile] { files.filter { $0.key.hasSuffix(".md") }.map { StoredFile(path: $0.key, contents: $0.value) } }
     func saveToLibrary(_ file: StoredFile) throws { files[file.path] = file.contents }
     func removeFromLibrary(path: String) throws { files[path] = nil }
     func removeLibrary() throws { files = [:] }

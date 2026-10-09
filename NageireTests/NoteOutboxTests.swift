@@ -337,4 +337,25 @@ struct NoteOutboxTests {
 
         #expect(reported == [update])
     }
+
+    @Test func attachingAFileKeepsItInTheFolderBesideTheNoteAndReturnsItsLine() throws {
+        let outbox = outbox()
+        let entry = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+
+        let line = try outbox.attach(Data("jpeg".utf8), named: "IMG 0421.jpeg", to: entry)
+
+        #expect(line == "![IMG_0421.jpeg](2026-10-03T135812Z-a1b2/IMG_0421.jpeg)")
+        #expect(store.attachments == ["notes/2026/10/2026-10-03T135812Z-a1b2/IMG_0421.jpeg": Data("jpeg".utf8)])
+    }
+
+    @Test func aSecondFileOfTheSameNameGetsACounter() throws {
+        let outbox = outbox()
+        let entry = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+        _ = try outbox.attach(Data("first".utf8), named: "IMG.jpeg", to: entry)
+
+        let line = try outbox.attach(Data("second".utf8), named: "IMG.jpeg", to: entry)
+
+        #expect(line == "![IMG-2.jpeg](2026-10-03T135812Z-a1b2/IMG-2.jpeg)")
+        #expect(store.attachments["notes/2026/10/2026-10-03T135812Z-a1b2/IMG-2.jpeg"] == Data("second".utf8))
+    }
 }

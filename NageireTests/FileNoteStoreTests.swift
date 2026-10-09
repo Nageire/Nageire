@@ -134,4 +134,18 @@ struct FileNoteStoreTests {
 
         #expect(try store.changes().isEmpty)
     }
+
+    @Test func aWaitingFileAndALibraryFileAreReadBackByPathAndListedByFolder() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let folder = "notes/2026/10/2026-10-03T135812Z-a1b2"
+        try store.addAttachment(StoredFile(path: "\(folder)/waiting.jpg", contents: Data("w".utf8)))
+        try FileManager.default.createDirectory(at: directory.appending(path: "library/\(folder)"), withIntermediateDirectories: true)
+        try Data("s".utf8).write(to: directory.appending(path: "library/\(folder)/sent.jpg"))
+
+        #expect(try store.attachmentNames(inFolder: folder).sorted() == ["sent.jpg", "waiting.jpg"])
+        #expect(try store.attachment(at: "\(folder)/waiting.jpg") == Data("w".utf8))
+        #expect(try store.attachment(at: "\(folder)/sent.jpg") == Data("s".utf8))
+        #expect(try store.attachment(at: "\(folder)/missing.jpg") == nil)
+        #expect(try store.library().isEmpty)
+    }
 }

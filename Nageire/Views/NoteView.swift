@@ -18,7 +18,7 @@ struct NoteView: View {
 
     var body: some View {
         @Bindable var model = model
-        NoteEditor(text: $text, focusesOnAppear: false, isNoteColumn: true, header: AnyView(NoteHeader(note: note).padding(.bottom, Spacing.headerGap)))
+        NoteEditor(text: $text, focusesOnAppear: false, isNoteColumn: true, header: AnyView(NoteHeader(note: note).padding(.bottom, Spacing.headerGap))) { model.attachment(of: note, linked: $0) }
             .background(.paper)
             .onChange(of: text) { model.editNote(note, text: text) }
             // Closing the note, or opening another in its place, is one of the moments the edits go to GitHub.

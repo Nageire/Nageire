@@ -401,4 +401,14 @@ struct AppModelTests {
 
         #expect(model.outbox.pendingCount == 1)
     }
+
+    @Test func anImageLineOfANoteReadsItsFileFromTheDeviceAndALinkElsewhereReadsNothing() throws {
+        let model = model()
+        let note = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+        _ = try model.outbox.attach(Data("jpeg".utf8), named: "IMG_0421.jpeg", to: note)
+
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/IMG_0421.jpeg") == Data("jpeg".utf8))
+        #expect(model.attachment(of: note, linked: "https://example.com/IMG_0421.jpeg") == nil)
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/other.jpeg") == nil)
+    }
 }

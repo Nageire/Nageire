@@ -11,6 +11,8 @@ struct NoteEditor: View {
     var isNoteColumn = false
     /// Above the text, scrolling with it: the note's header.
     var header: AnyView?
+    /// The file an image line links to, for its thumbnail. Nil while the device does not have the file.
+    var attachment: (String) -> Data? = { _ in nil }
 
     @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     /// The cursor goes into the editor when it appears, and on each request after that.
@@ -20,7 +22,7 @@ struct NoteEditor: View {
     @State private var isFocused = false
 
     var body: some View {
-        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused, isNoteColumn: isNoteColumn, header: header)
+        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused, isNoteColumn: isNoteColumn, header: header, attachment: attachment)
             .focusedSceneValue(\.editorRequests, isFocused ? requests : nil)
             .onAppear {
                 if focusesOnAppear {
@@ -57,7 +59,9 @@ extension View {
 
 #Preview {
     @Previewable @State var text = SampleData.notes()[4].editableText
-    NoteEditor(text: $text, focusesOnAppear: false, isNoteColumn: true, header: AnyView(NoteHeader(note: SampleData.notes()[4]).padding(.bottom, Spacing.headerGap)))
+    let note = SampleData.notes()[4]
+    let model = AppModel.sample()
+    NoteEditor(text: $text, focusesOnAppear: false, isNoteColumn: true, header: AnyView(NoteHeader(note: note).padding(.bottom, Spacing.headerGap))) { model.attachment(of: note, linked: $0) }
         .background(.paper)
 }
 
