@@ -17,6 +17,8 @@ struct MarkdownTextView {
     var isNoteColumn = false
     /// Laid out above the text inside the view, so that it scrolls with the text.
     var header: AnyView?
+    /// The file an image line links to, for its thumbnail. Nil while the device does not have the file.
+    var attachment: (String) -> Data? = { _ in nil }
 
     func makeCoordinator() -> MarkdownTextCoordinator {
         MarkdownTextCoordinator(text: $text)
@@ -34,8 +36,13 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
     var styler: MarkdownStyler?
     /// Set with the view: a fragment keeps the palette it was laid out with.
     var palette = DecorationPalette(accent: .ink)
-    /// What a thumbnail's frame is drawn with: one device pixel.
-    var pixelLength: CGFloat = 1
+    /// The screen's, for the thumbnails and the one device pixel a thumbnail's frame is drawn with.
+    var scale: CGFloat = 1 {
+        didSet { thumbnails.scale = scale }
+    }
+    var pixelLength: CGFloat { 1 / scale }
+    /// The thumbnails decoded so far, and the files they are made from; a line whose thumbnail arrives is styled again to show it.
+    let thumbnails = ThumbnailCache()
     /// Where the caret is, for the paragraph being laid out to know whether it holds it.
     weak var view: NoteTextView?
     /// The start of the paragraph that held the caret when the selection last moved, to restyle when it leaves.
@@ -45,6 +52,8 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
 
     init(text: Binding<String>) {
         self.text = text
+        super.init()
+        thumbnails.onDecode = { [weak self] link in self?.restyleImageLines(linking: link) }
     }
 
     func textContentStorage(_ textContentStorage: NSTextContentStorage, textParagraphWith range: NSRange) -> NSTextParagraph? {
@@ -82,6 +91,16 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         storage.beginEditing()
         storage.edited(.editedAttributes, range: range, changeInLength: 0)
         storage.endEditing()
+    }
+
+    /// Styles the image lines that link the file again, now that their thumbnail is decoded.
+    private func restyleImageLines(linking link: String) {
+        guard let storage = view?.contentStorage?.textStorage else { return }
+        let string = storage.string as NSString
+        string.enumerateSubstrings(in: NSRange(location: 0, length: string.length), options: .byParagraphs) { paragraph, _, range, _ in
+            guard let paragraph, paragraph.hasPrefix("!["), case let .image(_, linked) = MarkdownLine(paragraph).kind, linked == link else { return }
+            self.restyle(range, in: storage)
+        }
     }
 
     private func caretParagraphStart(in storage: NSTextStorage) -> Int {
@@ -147,8 +166,8 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         switch decoration {
         case let .checkbox(done, box):
             return CheckboxLayoutFragment(textElement: textElement, done: done, box: box, capHeight: styler.fonts.body.capHeight, palette: palette)
-        case let .thumbnail(file):
-            return ThumbnailLayoutFragment(textElement: textElement, file: file, font: styler.fonts.caption, palette: palette, hairline: pixelLength)
+        case let .thumbnail(file, link):
+            return ThumbnailLayoutFragment(textElement: textElement, file: file, thumbnail: thumbnails.thumbnail(for: link), font: styler.fonts.caption, palette: palette, hairline: pixelLength)
         }
     }
 
@@ -183,8 +202,9 @@ extension MarkdownTextView: UIViewRepresentable {
         coordinator.isFocused = isFocused
         requests?.editor = coordinator
         coordinator.serif = serif
+        coordinator.thumbnails.attachment = attachment
         coordinator.palette = DecorationPalette(accent: view.tintColor)
-        coordinator.pixelLength = 1 / view.traitCollection.displayScale
+        coordinator.scale = view.traitCollection.displayScale
         coordinator.apply(EditorFonts(serif: serif, traits: view.traitCollection), to: view)
         view.text = text
         coordinator.selectionDidChange()
@@ -217,6 +237,7 @@ extension MarkdownTextView: UIViewRepresentable {
         let coordinator = context.coordinator
         coordinator.text = $text
         coordinator.isFocused = isFocused
+        coordinator.thumbnails.attachment = attachment
         if let header {
             view.header?.rootView = header
             view.headerNeedsLayout = true
@@ -378,9 +399,10 @@ extension MarkdownTextView: NSViewRepresentable {
         coordinator.isFocused = isFocused
         requests?.editor = coordinator
         coordinator.serif = serif
+        coordinator.thumbnails.attachment = attachment
         coordinator.palette = DecorationPalette(accent: .controlAccentColor)
         // The view has no window yet; the main screen's scale is the one it will almost always get.
-        coordinator.pixelLength = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
+        coordinator.scale = NSScreen.main?.backingScaleFactor ?? 2
         coordinator.apply(EditorFonts(serif: serif), to: view)
         view.string = text
         coordinator.selectionDidChange()
@@ -396,6 +418,7 @@ extension MarkdownTextView: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.text = $text
         coordinator.isFocused = isFocused
+        coordinator.thumbnails.attachment = attachment
         if let header {
             view.header?.rootView = header
             view.headerNeedsLayout = true

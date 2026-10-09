@@ -23,6 +23,18 @@ enum SampleData {
         ![ito.jpg](ito.jpg)
         """
 
+    /// The files the notes' image lines link to, as the device holds them once fetched: the images under Preview Content.
+    static func attachments(of notes: [NoteEntry]) -> [StoredFile] {
+        notes.flatMap { note in
+            note.body.split(separator: "\n").compactMap { line -> StoredFile? in
+                guard case let .image(file, link) = MarkdownLine(line).kind, let path = note.attachmentPath(linked: link),
+                      let url = Bundle.main.url(forResource: file, withExtension: nil), let contents = try? Data(contentsOf: url)
+                else { return nil }
+                return StoredFile(path: path, contents: contents)
+            }
+        }
+    }
+
     /// When GitHub last took a note: this morning, after the note of 7:40 and before the unsent one.
     static var lastSentAt: Date { time(daysAgo: 0, 9, 14) }
 
@@ -165,8 +177,12 @@ extension AppModel {
             defaults: defaults
         )
         if signedIn {
-            // Choosing the repository fetches its notes, which is how the sent ones reach the list.
+            // Choosing the repository fetches its notes, which is how the sent ones reach the list. It also empties
+            // the library, so the files the notes link to go in after it, as a fetch of the notes' folders would put them.
             model.select(SampleData.repository)
+            for file in SampleData.attachments(of: notes.filter { !$0.isPending }) {
+                try? store.saveToLibrary(file)
+            }
         }
         if scene == .deleted, let newest = notes.first {
             // The undo window runs from here: the bar stands for its ten seconds after the launch.

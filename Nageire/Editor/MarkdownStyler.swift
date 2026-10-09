@@ -58,7 +58,8 @@ struct EditorFonts {
 enum LineDecoration: Hashable {
     /// `box` is where the `[ ]` is in the paragraph.
     case checkbox(done: Bool, box: NSRange)
-    case thumbnail(file: String)
+    /// `link` is the image's address as the line has it, which names the file.
+    case thumbnail(file: String, link: String)
 }
 
 extension NSAttributedString.Key {
@@ -143,10 +144,10 @@ struct MarkdownStyler {
                 }
             }
             styled.addAttribute(.paragraphStyle, value: style, range: whole)
-        case let .image(file, _):
+        case let .image(file, link):
             // Off the caret the paragraph is its thumbnail alone.
             styled.addAttributes(caretOnly, range: whole)
-            styled.addAttribute(.lineDecoration, value: LineDecoration.thumbnail(file: file), range: whole)
+            styled.addAttribute(.lineDecoration, value: LineDecoration.thumbnail(file: file, link: link), range: whole)
         }
         for span in line.spans {
             let range = NSRange(span.range, in: string)
