@@ -73,6 +73,21 @@ struct MarkdownTextViewTests {
     }
     #endif
 
+    @Test func aTapOnTheBoxOfATaskTogglesItAndATapBesideItDoesNot() throws {
+        let (view, coordinator, received) = makeView(text: "- [ ] a", caret: 7)
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 200)
+        let layoutManager = try #require(view.textLayoutManager)
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let fragment = try #require(layoutManager.textLayoutFragment(for: .zero) as? CheckboxLayoutFragment)
+        let box = fragment.boxRect.offsetBy(dx: fragment.layoutFragmentFrame.minX, dy: fragment.layoutFragmentFrame.minY)
+
+        #expect(!coordinator.toggleBox(at: CGPoint(x: box.maxX + 40, y: box.midY)))
+        #expect(received.text == "- [ ] a")
+        #expect(coordinator.toggleBox(at: CGPoint(x: box.midX, y: box.midY)))
+        #expect(received.text == "- [x] a")
+        #expect(view.selection == NSRange(location: 7, length: 0))
+    }
+
     @Test func aCommandEditsTheViewAndReachesTheBinding() {
         let (view, coordinator, received) = makeView(text: "- a", caret: 3)
 

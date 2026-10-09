@@ -108,6 +108,26 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         return true
     }
 
+    /// The box of a task under a point in the text container's coordinates, with the margin around it.
+    func box(at point: CGPoint) -> (range: NSRange, done: Bool)? {
+        guard let view, let layoutManager = view.textLayoutManager, let contentStorage = view.contentStorage,
+              let fragment = layoutManager.textLayoutFragment(for: point) as? CheckboxLayoutFragment,
+              let elementStart = fragment.textElement?.elementRange?.location,
+              fragment.boxRect.offsetBy(dx: fragment.layoutFragmentFrame.minX, dy: fragment.layoutFragmentFrame.minY)
+                  .insetBy(dx: -EditorMetrics.checkboxHitMargin, dy: -EditorMetrics.checkboxHitMargin).contains(point)
+        else { return nil }
+        let start = contentStorage.offset(from: contentStorage.documentRange.location, to: elementStart)
+        return (NSRange(location: start + fragment.box.location, length: fragment.box.length), fragment.done)
+    }
+
+    /// Toggles the box under a point, an edit like any other, and says whether there was one.
+    @discardableResult
+    func toggleBox(at point: CGPoint) -> Bool {
+        guard let view, let box = box(at: point) else { return false }
+        view.apply(TextEdit(range: box.range, replacement: box.done ? "[ ]" : "[x]", selection: view.selection))
+        return true
+    }
+
     /// The paragraph around a location, which an edit since may have moved past the end.
     private func paragraph(at location: Int, in storage: NSTextStorage) -> NSRange {
         (storage.string as NSString).paragraphRange(for: NSRange(location: min(location, storage.length), length: 0))
@@ -246,12 +266,14 @@ final class NoteTextView: UITextView {
     var selection: NSRange { selectedRange }
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
+    private lazy var boxTap = UITapGestureRecognizer(target: self, action: #selector(tapBox))
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
         registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (view: Self, _) in
             view.onTextSizeChange?(view)
         }
+        addGestureRecognizer(boxTap)
     }
 
     private var coordinator: MarkdownTextCoordinator? { delegate as? MarkdownTextCoordinator }
@@ -268,6 +290,49 @@ final class NoteTextView: UITextView {
             if textContainerInset.top != Spacing.rowPadding + height {
                 textContainerInset.top = Spacing.rowPadding + height
             }
+        }
+    }
+
+    /// A tap on a box is the box's, not the text's: it toggles the task and neither moves the caret nor raises
+    /// the keyboard. A drag that starts on a box still scrolls.
+    override func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+        let overBox = coordinator?.box(at: containerPoint(recognizer.location(in: self))) != nil
+        if recognizer === boxTap {
+            return overBox
+        }
+        let isTextTouch = recognizer is UITapGestureRecognizer || recognizer is UILongPressGestureRecognizer
+        return !(overBox && isTextTouch) && super.gestureRecognizerShouldBegin(recognizer)
+    }
+
+    @objc private func tapBox(_ recognizer: UITapGestureRecognizer) {
+        coordinator?.toggleBox(at: containerPoint(recognizer.location(in: self)))
+    }
+
+    private func containerPoint(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("The view is made in code, never decoded.")
+    }
+
+    var contentStorage: NSTextContentStorage? {
+        textLayoutManager?.textContentManager as? NSTextContentStorage
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil, wantsFocus {
+            wantsFocus = false
+            becomeFirstResponder()
+        }
+    }
+
+    func focus() {
+        if window != nil {
+            becomeFirstResponder()
+        } else {
+            wantsFocus = true
         }
     }
 
@@ -395,6 +460,46 @@ final class NoteTextView: NSTextView {
             textContainerInset = inset
         }
         super.layout()
+    }
+
+    /// A click on a box is the box's, not the text's: it toggles the task and does not move the caret.
+    /// The second click of a double click is nobody's, so that it does not toggle the task back.
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let origin = textContainerOrigin
+        let container = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
+        if event.clickCount > 1, coordinator?.box(at: container) != nil {
+            return
+        }
+        if coordinator?.toggleBox(at: container) == true {
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil, wantsFocus {
+            wantsFocus = false
+            window?.makeFirstResponder(self)
+        }
+    }
+
+    // The text delegate hears of editing beginning with the first change, not with the keyboard.
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became {
+            coordinator?.focusDidChange(to: true)
+        }
+        return became
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned {
+            coordinator?.focusDidChange(to: false)
+        }
+        return resigned
     }
 
     func focus() {

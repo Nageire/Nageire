@@ -15,6 +15,8 @@ nonisolated enum EditorMetrics {
     /// The box of a task and the stroke of an open one.
     static let checkbox: CGFloat = 22
     static let checkboxBorder: CGFloat = 1.5
+    /// Around the box, where a tap still counts as the box's.
+    static let checkboxHitMargin: CGFloat = 8
     static let thumbnail = CGSize(width: 164, height: 123)
     /// Above the thumbnail and between it and its caption, and after the caption.
     static let thumbnailGap: CGFloat = 6
