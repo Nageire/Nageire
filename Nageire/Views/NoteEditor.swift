@@ -9,12 +9,31 @@ struct NoteEditor: View {
     @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     /// The cursor goes into the editor when it appears, and on each request after that.
     @State private var focusRequests = 0
+    @State private var requests = EditorRequests()
+    /// The text view has the keyboard. The Format menu acts only then, not while a search field has it.
+    @State private var isFocused = false
 
     var body: some View {
-        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests)
+        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused)
+            .focusedSceneValue(\.editorRequests, isFocused ? requests : nil)
             .onAppear { focusRequests += 1 }
             .onChange(of: focusRequest) { focusRequests += 1 }
     }
+}
+
+/// The way from the Format menu to the editor that has the focus. A class, so that the focused value compares by identity.
+final class EditorRequests {
+    /// The text view's coordinator, set when the view is made.
+    weak var editor: MarkdownTextView.Coordinator?
+
+    func request(_ command: EditorCommand) {
+        editor?.perform(command)
+    }
+}
+
+extension FocusedValues {
+    /// Nil while no editor has the keyboard.
+    @Entry var editorRequests: EditorRequests?
 }
 
 extension View {

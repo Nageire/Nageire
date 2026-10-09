@@ -58,6 +58,7 @@ extension FocusedValues {
 
 struct NoteCommands: Commands {
     @FocusedValue(\.newNoteRequests) private var newNoteRequests
+    @FocusedValue(\.editorRequests) private var editorRequests
 
     var body: some Commands {
         // Command-N is the key for a new note, not for a new window.
@@ -65,6 +66,17 @@ struct NoteCommands: Commands {
             Button("New Note") { newNoteRequests?.request() }
                 .keyboardShortcut("n", modifiers: .command)
                 .disabled(newNoteRequests == nil)
+        }
+        CommandMenu("Format") {
+            Group {
+                Button("Bold") { editorRequests?.request(.bold) }
+                    .keyboardShortcut("b", modifiers: .command)
+                Button("Italic") { editorRequests?.request(.italic) }
+                    .keyboardShortcut("i", modifiers: .command)
+                Button("Add Link") { editorRequests?.request(.link) }
+                    .keyboardShortcut("k", modifiers: .command)
+            }
+            .disabled(editorRequests == nil)
         }
     }
 }

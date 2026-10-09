@@ -21,6 +21,16 @@
         }
       }
     },
+    "Add Link" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リンクを追加"
+          }
+        }
+      }
+    },
     "Add or remove repositories on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -61,6 +71,16 @@
         }
       }
     },
+    "Bold" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "太字"
+          }
+        }
+      }
+    },
     "Can't write to the repository." : {
       "localizations" : {
         "ja" : {
@@ -87,6 +107,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "設定で確認してください。"
+          }
+        }
+      }
+    },
+    "Checklist" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェックリスト"
           }
         }
       }
@@ -231,12 +261,42 @@
         }
       }
     },
+    "Format" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォーマット"
+          }
+        }
+      }
+    },
     "GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub で Nageire の認可を求められます。Nageire が読み書きできるのは、インストール先に選んだリポジトリだけです。"
+          }
+        }
+      }
+    },
+    "Heading" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見出し"
+          }
+        }
+      }
+    },
+    "Hide Keyboard" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーボードを隠す"
           }
         }
       }
@@ -271,12 +331,32 @@
         }
       }
     },
+    "Italic" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "イタリック"
+          }
+        }
+      }
+    },
     "Last sent" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "最後に送信"
+          }
+        }
+      }
+    },
+    "List" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リスト"
           }
         }
       }
