@@ -24,6 +24,10 @@ struct MarkdownTextView {
         var palette = DecorationPalette(accent: .ink)
         /// What a thumbnail's frame is drawn with: one device pixel.
         var pixelLength: CGFloat = 1
+        /// Where the caret is, for the paragraph being laid out to know whether it holds it.
+        weak var view: NoteTextView?
+        /// The start of the paragraph that held the caret when the selection last moved, to restyle when it leaves.
+        private var lastCaretParagraphStart: Int?
 
         init(text: Binding<String>) {
             self.text = text
@@ -32,7 +36,37 @@ struct MarkdownTextView {
         func textContentStorage(_ textContentStorage: NSTextContentStorage, textParagraphWith range: NSRange) -> NSTextParagraph? {
             guard let styler, let storage = textContentStorage.textStorage else { return nil }
             let paragraph = (storage.string as NSString).substring(with: range)
-            return NSTextParagraph(attributedString: styler.styled(paragraph, isFirst: range.location == 0))
+            // The paragraphs an edit touched are asked for before the selection follows it, and a stale caret is still on the paragraph being edited.
+            let holdsCaret = range.location == caretParagraphStart(in: storage)
+            return NSTextParagraph(attributedString: styler.styled(paragraph, isFirst: range.location == 0, holdsCaret: holdsCaret))
+        }
+
+        /// Restyles the paragraph the caret left and the one it entered, if it moved to another.
+        func selectionDidChange() {
+            guard let storage = view?.contentStorage?.textStorage else { return }
+            let start = caretParagraphStart(in: storage)
+            guard start != lastCaretParagraphStart else { return }
+            let left = lastCaretParagraphStart
+            lastCaretParagraphStart = start
+            // The content storage keeps the paragraphs it made and hands them out again when the layout alone is
+            // invalidated; only an edit of the storage makes it ask for one anew, and an edit of the attributes that
+            // changes none is enough. Each paragraph is a session of its own: within one session the storage unites
+            // the ranges, and every paragraph between the two would be asked for; an edit outside a session reaches the
+            // screen only with the next event after a click.
+            for location in [left, start].compactMap({ $0 }) {
+                storage.beginEditing()
+                storage.edited(.editedAttributes, range: paragraph(at: location, in: storage), changeInLength: 0)
+                storage.endEditing()
+            }
+        }
+
+        private func caretParagraphStart(in storage: NSTextStorage) -> Int {
+            paragraph(at: view?.selectionStart ?? 0, in: storage).location
+        }
+
+        /// The paragraph around a location, which an edit since may have moved past the end.
+        private func paragraph(at location: Int, in storage: NSTextStorage) -> NSRange {
+            (storage.string as NSString).paragraphRange(for: NSRange(location: min(location, storage.length), length: 0))
         }
 
         func textLayoutManager(_ textLayoutManager: NSTextLayoutManager, textLayoutFragmentFor location: any NSTextLocation, in textElement: NSTextElement) -> NSTextLayoutFragment {
@@ -77,11 +111,13 @@ extension MarkdownTextView: UIViewRepresentable {
         view.delegate = coordinator
         view.textLayoutManager?.delegate = coordinator
         view.contentStorage?.delegate = coordinator
+        coordinator.view = view
         coordinator.serif = serif
         coordinator.palette = DecorationPalette(accent: view.tintColor)
         coordinator.pixelLength = 1 / view.traitCollection.displayScale
         coordinator.apply(EditorFonts(serif: serif, traits: view.traitCollection), to: view)
         view.text = text
+        coordinator.selectionDidChange()
         view.onTextSizeChange = { [weak coordinator] view in
             coordinator?.apply(EditorFonts(serif: coordinator?.serif ?? false, traits: view.traitCollection), to: view)
         }
@@ -109,10 +145,16 @@ extension MarkdownTextView.Coordinator: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         text.wrappedValue = textView.text
     }
+
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        selectionDidChange()
+    }
 }
 
 final class NoteTextView: UITextView {
     var onTextSizeChange: ((NoteTextView) -> Void)?
+    /// One name over both platforms' selection, for the coordinator.
+    var selectionStart: Int { selectedRange.location }
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
 
@@ -165,12 +207,14 @@ extension MarkdownTextView: NSViewRepresentable {
         view.delegate = coordinator
         view.textLayoutManager?.delegate = coordinator
         view.contentStorage?.delegate = coordinator
+        coordinator.view = view
         coordinator.serif = serif
         coordinator.palette = DecorationPalette(accent: .controlAccentColor)
         // The view has no window yet; the main screen's scale is the one it will almost always get.
         coordinator.pixelLength = 1 / (NSScreen.main?.backingScaleFactor ?? 2)
         coordinator.apply(EditorFonts(serif: serif), to: view)
         view.string = text
+        coordinator.selectionDidChange()
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
@@ -201,11 +245,17 @@ extension MarkdownTextView.Coordinator: NSTextViewDelegate {
         guard let view = notification.object as? NSTextView else { return }
         text.wrappedValue = view.string
     }
+
+    func textViewDidChangeSelection(_ notification: Notification) {
+        selectionDidChange()
+    }
 }
 
 final class NoteTextView: NSTextView {
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
+    /// One name over both platforms' selection, for the coordinator.
+    var selectionStart: Int { selectedRange().location }
 
     var contentStorage: NSTextContentStorage? {
         textContentStorage
