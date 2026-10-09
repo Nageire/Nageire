@@ -1,22 +1,19 @@
 import SwiftUI
 
-/// The text field, shared by writing a new note and editing one. The button that saves belongs to the screen around it.
+/// The editor, shared by writing a new note and editing one. The button that saves belongs to the screen around it.
 struct NoteEditor: View {
     @Binding var text: String
-    /// Changes each time the cursor should go to the field even though it is already showing.
+    /// Changes each time the cursor should go to the editor even though it is already showing.
     var focusRequest = 0
 
-    @FocusState private var isEditing: Bool
+    @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
+    /// The cursor goes into the editor when it appears, and on each request after that.
+    @State private var focusRequests = 0
 
     var body: some View {
-        TextEditor(text: $text)
-            .focused($isEditing)
-            .font(.body)
-            .foregroundStyle(.ink)
-            .scrollContentBackground(.hidden)
-            .padding(.horizontal)
-            .onAppear { isEditing = true }
-            .onChange(of: focusRequest) { isEditing = true }
+        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests)
+            .onAppear { focusRequests += 1 }
+            .onChange(of: focusRequest) { focusRequests += 1 }
     }
 }
 
@@ -27,4 +24,20 @@ extension View {
             Button("OK", role: .cancel) {}
         }
     }
+}
+
+#Preview {
+    @Previewable @State var text = SampleData.notes()[4].editableText
+    NoteEditor(text: $text)
+        .background(.paper)
+}
+
+#Preview("Serif, accessibility size") {
+    @Previewable @State var text = SampleData.draft
+    let model = AppModel.sample()
+    NoteEditor(text: $text)
+        .environment(\.dynamicTypeSize, .accessibility3)
+        .background(.paper)
+        .sample(model)
+        .onAppear { model.defaults.set(true, forKey: AppModel.Keys.serifBody) }
 }

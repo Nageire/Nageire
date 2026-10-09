@@ -138,6 +138,10 @@ struct NoteEntryTitleTests {
         #expect(entry("**大事**な話。あとで。\n").displayTitle == "大事な話。")
     }
 
+    @Test func aMarkWithoutItsPairStaysInTheTitle() {
+        #expect(entry("2 * 3 と IMG_0412_a.jpeg\n").displayTitle == "2 * 3 と IMG_0412_a.jpeg")
+    }
+
     @Test func anEnglishSentenceEndsAtAPeriodBeforeASpaceButNotInsideANumber() {
         #expect(entry("Call the dentist. Fix the calendar after.\n").displayTitle == "Call the dentist.")
         #expect(entry("Version 2.5 ships. Then rest.\n").displayTitle == "Version 2.5 ships.")

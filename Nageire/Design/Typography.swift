@@ -1,7 +1,14 @@
 import SwiftUI
 
+/// The line height of a note's text as a multiple of its size. Japanese set solid is hard to
+/// read past a few lines, so the body's line is taller than the system's.
+nonisolated enum Leading {
+    static let body: CGFloat = 1.65
+    static let heading: CGFloat = 1.35
+}
+
 /// A heading inside a note, by the number of its `#` marks.
-enum NoteHeading {
+enum NoteHeading: CaseIterable {
     case first, second, third
 
     /// The size at the default text size.
@@ -15,15 +22,15 @@ enum NoteHeading {
 }
 
 extension View {
-    /// The text of a note. The line is taller than the system's because Japanese set solid is hard to read past a few lines.
+    /// The text of a note.
     func noteBodyStyle(serif: Bool = false) -> some View {
         font(.system(.body, design: serif ? .serif : .default))
-            .lineHeight(.multiple(factor: 1.65))
+            .lineHeight(.multiple(factor: Leading.body))
     }
 
     func noteHeadingStyle(_ heading: NoteHeading) -> some View {
         modifier(ScaledFont(size: heading.size, weight: .semibold))
-            .lineHeight(.multiple(factor: 1.35))
+            .lineHeight(.multiple(factor: Leading.heading))
     }
 
     /// A title the on-device model proposed, in a list row: set apart from the person's own words.

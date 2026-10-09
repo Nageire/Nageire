@@ -1,4 +1,13 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+typealias PlatformFont = UIFont
+typealias PlatformColor = UIColor
+#else
+import AppKit
+typealias PlatformFont = NSFont
+typealias PlatformColor = NSColor
+#endif
 
 /// The roles the stylesheet in `docs/design/tokens.css` gives its colors. The colors themselves
 /// (`.paper`, `.ink2`, `.accentText`) are the color sets of the asset catalog, which Xcode turns
@@ -18,7 +27,13 @@ extension ShapeStyle where Self == Color {
     static var textMark: Color { .inkFaint }
 }
 
-enum Spacing {
+extension PlatformColor {
+    /// The Markdown marks left visible in the editor, for the text view that draws them.
+    static var textMark: PlatformColor { .inkFaint }
+}
+
+// The measures are plain constants, read on and off the main actor alike.
+nonisolated enum Spacing {
     /// The distance from the edge of the screen to its content.
     #if os(macOS)
     static let gutter: CGFloat = 24
@@ -40,11 +55,13 @@ enum Spacing {
     static let controlCompact: CGFloat = 34
 }
 
-enum Radius {
+nonisolated enum Radius {
     static let input: CGFloat = 10
     static let thumbnail: CGFloat = 10
     static let card: CGFloat = 14
     static let sheet: CGFloat = 20
+    /// The box of a task in the editor.
+    static let checkbox: CGFloat = 6
 }
 
 extension EdgeInsets {

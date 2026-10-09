@@ -48,19 +48,21 @@ struct NoteEntry: Identifiable, Hashable {
         var attachments = 0
         var firstFile: String?
         for line in body.split(separator: "\n").map({ $0.trimmingCharacters(in: .whitespaces) }) {
+            let markdown = MarkdownLine(line)
             // An image line is nothing to read, since its name is not text.
             if line.hasPrefix("![") {
-                if let file = line.wholeMatch(of: attachmentLine)?.output.1 {
+                // A link with a scheme points elsewhere; a relative one is a file in the folder beside the note.
+                if case let .image(file, path) = markdown.kind, !path.contains("://") {
                     attachments += 1
-                    firstFile = firstFile ?? file.split(separator: "/").last.map(String.init)
+                    firstFile = firstFile ?? file
                 }
                 continue
             }
-            let text = plainText(of: line)
+            let text = plainText(of: markdown, in: line)
             guard !text.isEmpty else { continue }
             if title != nil {
                 excerpt.append(text)
-            } else if line.hasPrefix("# ") {
+            } else if markdown.kind == .heading(level: 1) {
                 title = text
                 hasHeading = true
             } else {
@@ -76,18 +78,13 @@ struct NoteEntry: Identifiable, Hashable {
 
     /// A Japanese sentence mark, or a period that is followed by a space or ends the line, so that a decimal or an address does not end a sentence.
     private static let sentenceEnd = /[。！？!?]|\.(?=\s|$)/
-    /// An image line whose link is relative, which is a file in the folder beside the note.
-    private static let attachmentLine = /!\[[^\]]*\]\((?![^)]*:\/\/)([^)]+)\)/
-    /// The marker that opens a heading, a list item with or without its task box, a numbered item, or a quote.
-    private static let blockMarker = /^(#{1,6} |[-*+] (\[[ xX]\] )?|\d+[.)] |> )/
-    private static let link = /\[([^\]]+)\]\([^)]*\)/
-    private static let inlineMarks = /[*_`]+/
-
     /// The line without its Markdown marks: the block marker, emphasis and code marks, and a link's address.
-    private static func plainText(of line: String) -> String {
-        String(line.trimmingPrefix(blockMarker))
-            .replacing(link) { String($0.output.1) }
-            .replacing(inlineMarks, with: "")
+    private static func plainText(of markdown: MarkdownLine, in line: String) -> String {
+        var text = line[markdown.prefix.upperBound...]
+        for span in markdown.spans.reversed() where span.role == .mark || span.role == .linkAddress {
+            text.removeSubrange(span.range)
+        }
+        return String(text)
     }
 
     /// Orders by the time shown in the list. Files without a time come last, and the file name settles ties.
