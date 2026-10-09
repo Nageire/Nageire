@@ -100,6 +100,15 @@ Its pull requests, in order, with the items each carries:
 
 ## Phase 3: attachments (`feature/redesign-attachments`)
 
+Its pull requests, in order, with the items each carries:
+
+- `feature/redesign-attachments-folder`: 1, and from 5 the thumbnail drawn from the file on the device, since the folder and its files are what the editor shows. The sample gets image files under Preview Content, so that the screens can be photographed with thumbnails before anything is sent.
+- `feature/redesign-attachments-send`: 4, and from 5 the removal of a file no line names at the next send, since both are the outbox's order of work.
+- `feature/redesign-attachments-photos`: 2 for the library and the camera, and 3, since a photo is reduced as it comes in.
+- `feature/redesign-attachments-files`: 2 for the file picker, paste, and drag and drop, and the warnings of ux-redesign.md at 25 MB and 100 MB.
+- `feature/redesign-attachments-fetch`: 6, and from 5 the full screen on tap, which is where a fetched file is seen. A file that arrives has to reach the editor's thumbnail cache, which so far asks for a missing file again only when its line is laid out.
+- `feature/redesign-attachments`: 7 over the whole phase.
+
 1. The folder beside the note, the file naming, and the relative link, as ux-redesign.md gives them.
 2. Photos from the library and the camera, files from the file picker, paste, and drag and drop on iPad and macOS.
 3. Resizing to 2048 on the long side with the setting for 4096 and the original, HEIC to JPEG.
