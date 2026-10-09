@@ -17,8 +17,9 @@ struct DecorationPalette: Sendable {
 
 /// A task's line with its box drawn where the `[ ]` is. The brackets are in the text, clear and as wide as the box.
 nonisolated final class CheckboxLayoutFragment: NSTextLayoutFragment {
-    private let done: Bool
-    private let box: NSRange
+    let done: Bool
+    /// Where the `[ ]` is in the paragraph.
+    let box: NSRange
     /// The text's, which the box is centered on.
     private let capHeight: CGFloat
     private let palette: DecorationPalette
@@ -41,7 +42,7 @@ nonisolated final class CheckboxLayoutFragment: NSTextLayoutFragment {
 
     /// The square over the brackets, centered on the capitals of the first line, in the fragment's coordinates.
     /// The line's own middle is higher: the leading above the glyphs is the line's, not theirs.
-    private var boxRect: CGRect {
+    var boxRect: CGRect {
         guard let line = textLineFragments.first else { return .zero }
         let x = line.typographicBounds.minX + line.locationForCharacter(at: box.location).x
         let baseline = line.typographicBounds.minY + line.glyphOrigin.y

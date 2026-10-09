@@ -231,16 +231,6 @@
         }
       }
     },
-    "Edit" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "編集"
-          }
-        }
-      }
-    },
     "Edited %@" : {
       "localizations" : {
         "ja" : {
@@ -507,16 +497,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ゴシック"
-          }
-        }
-      }
-    },
-    "Save" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存"
           }
         }
       }

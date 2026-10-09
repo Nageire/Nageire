@@ -15,7 +15,11 @@ struct AppModelTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    private func model(undoWindow: Duration = .seconds(10)) -> AppModel {
+    private func model(undoWindow: Duration = .seconds(10), sendDelay: Duration = .seconds(30)) -> AppModel {
+        model(undoWindow: undoWindow, sendDelay: sendDelay, writeDelay: .zero)
+    }
+
+    private func model(undoWindow: Duration, sendDelay: Duration, writeDelay: Duration) -> AppModel {
         let oauth = FakeOAuth()
         return AppModel(
             configuration: GitHubAppConfiguration(clientID: "client-id", slug: "nageire"),
@@ -25,7 +29,9 @@ struct AppModelTests {
             library: NoteLibrary(store: notes, api: api),
             session: GitHubSession(store: store, oauth: oauth),
             defaults: defaults,
-            undoWindow: undoWindow
+            undoWindow: undoWindow,
+            sendDelay: sendDelay,
+            writeDelay: writeDelay
         )
     }
 
@@ -99,9 +105,7 @@ struct AppModelTests {
         try model.outbox.add(body: "Written before a repository was chosen")
 
         model.select(Repository(owner: "octocat", name: "notes"))
-        while model.outbox.pendingCount > 0 {
-            await Task.yield()
-        }
+        await outboxToDrain(of: model)
 
         #expect(api.createFileAttempts.map(\.repository) == ["octocat/notes"])
     }
@@ -114,9 +118,7 @@ struct AppModelTests {
         try model.saveNote(body: "Hello")
         #expect(model.outbox.pendingCount == 1)
         #expect(model.lastSentAt == nil)
-        while model.outbox.pendingCount > 0 {
-            await Task.yield()
-        }
+        await outboxToDrain(of: model)
 
         #expect(api.createFileAttempts.count == 1)
         #expect(model.lastSentAt != nil)
@@ -198,23 +200,38 @@ struct AppModelTests {
         }
     }
 
-    private func modelListingOneRemoteNote(undoWindow: Duration = .seconds(10)) async throws -> AppModel {
-        try await modelListing([remotePath: "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\nFrom another device\n"], undoWindow: undoWindow)
+    /// A send runs on its own task, so the tests that expect one wait here for the outbox to empty.
+    private func outboxToDrain(of model: AppModel) async {
+        while model.outbox.pendingCount > 0 {
+            await Task.yield()
+        }
     }
 
-    private func modelListing(_ remoteNotes: [String: String], undoWindow: Duration = .seconds(10)) async throws -> AppModel {
+    /// The text typed goes to the device after a pause, which the tests set to nothing and wait out here.
+    private func writeToLand(of model: AppModel) async {
+        while model.outbox.changes.isEmpty {
+            await Task.yield()
+        }
+    }
+
+    private func modelListingOneRemoteNote(undoWindow: Duration = .seconds(10), sendDelay: Duration = .seconds(30)) async throws -> AppModel {
+        try await modelListing([remotePath: "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\nFrom another device\n"], undoWindow: undoWindow, sendDelay: sendDelay)
+    }
+
+    private func modelListing(_ remoteNotes: [String: String], undoWindow: Duration = .seconds(10), sendDelay: Duration = .seconds(30)) async throws -> AppModel {
         api.remoteNotes = .success(remoteNotes)
-        let model = model(undoWindow: undoWindow)
+        let model = model(undoWindow: undoWindow, sendDelay: sendDelay)
         try model.completeSignIn(with: .sample)
         model.select(Repository(owner: "octocat", name: "notes"))
         await model.syncNotes()
         return model
     }
 
-    @Test func anEditedNoteShowsItsNewTextAtOnceAsUnsentAndThenReachesGitHub() async throws {
+    @Test func anEditedNoteShowsItsNewTextAtOnceAsUnsentAndReachesGitHubWithTheNextSend() async throws {
         let model = try await modelListingOneRemoteNote()
 
-        try model.editNote(try #require(model.notes().first), text: "Edited")
+        model.editNote(try #require(model.notes().first), text: "Edited")
+        await writeToLand(of: model)
 
         #expect(model.notes().map(\.body) == ["Edited"])
         #expect(model.notes().map(\.isPending) == [true])
@@ -226,6 +243,43 @@ struct AppModelTests {
         #expect(model.notes().map(\.isPending) == [false])
         #expect(try api.remoteNotes.get()[remotePath]?.hasSuffix("\n\nEdited\n") == true)
         #expect(model.lastSentAt != nil)
+    }
+
+    @Test(.timeLimit(.minutes(5))) func editsTypedWithinThePauseReachGitHubAsOneCommitAfterIt() async throws {
+        let model = try await modelListingOneRemoteNote(sendDelay: .milliseconds(100))
+        let note = try #require(model.notes().first)
+
+        model.editNote(note, text: "Edit")
+        model.editNote(try #require(model.notes().first), text: "Edited")
+        await writeToLand(of: model)
+
+        #expect(model.notes().map(\.isPending) == [true])
+        await outboxToDrain(of: model)
+
+        #expect(try api.remoteNotes.get()[remotePath]?.hasSuffix("\n\nEdited\n") == true)
+        #expect(api.writeFileAttempts.count == 1)
+    }
+
+    @Test func anEmptiedNoteKeepsItsTextOnTheDevice() async throws {
+        let model = try await modelListingOneRemoteNote()
+        let note = try #require(model.notes().first)
+
+        model.editNote(note, text: "Edited")
+        await writeToLand(of: model)
+        model.editNote(try #require(model.notes().first), text: " \n")
+        model.sendChanges()
+
+        #expect(model.notes().map(\.body) == ["Edited"])
+    }
+
+    @Test(.timeLimit(.minutes(5))) func leavingTheFrontSendsAnEditBeforeThePauseIsOver() async throws {
+        let model = try await modelListingOneRemoteNote(sendDelay: .seconds(3600))
+
+        model.editNote(try #require(model.notes().first), text: "Edited")
+        model.isInFront = false
+
+        await outboxToDrain(of: model)
+        #expect(try api.remoteNotes.get()[remotePath]?.hasSuffix("\n\nEdited\n") == true)
     }
 
     @Test(.timeLimit(.minutes(5))) func aDeletedNoteLeavesTheListAtOnceAndIsRemovedFromGitHubOnceItsUndoWindowCloses() async throws {
@@ -339,7 +393,8 @@ struct AppModelTests {
     @Test func anEditStillUnsentAtSignOutStaysOnTheDevice() async throws {
         let model = try await modelListingOneRemoteNote()
         api.changeResults = [.failure(URLError(.notConnectedToInternet))]
-        try model.editNote(try #require(model.notes().first), text: "Edited")
+        model.editNote(try #require(model.notes().first), text: "Edited")
+        await writeToLand(of: model)
         await model.outbox.send()
 
         model.signOut()

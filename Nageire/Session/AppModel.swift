@@ -21,14 +21,32 @@ final class AppModel {
     var pendingDeletion: NoteEntry? { deletion?.note }
     /// Set when the deletion could not be recorded on the device once its window closed; the note is back in the list.
     var deletionFailed = false
+    /// Set when an edit could not be written to the device; the text stays in the editor.
+    var editFailed = false
     /// Whether the app is in front, where the undo bar can be seen. The window runs only then,
     /// so that the bar never goes away unseen.
     var isInFront = true {
-        didSet { updateUndoWindow() }
+        didSet {
+            updateUndoWindow()
+            // The app put away is one of the moments an edit goes to GitHub.
+            if !isInFront, sendAfterPause != nil {
+                sendChanges()
+            }
+        }
     }
 
     private let undoWindow: Duration
+    /// How long typing may pause before the changes on the device go to GitHub as one commit.
+    private let sendDelay: Duration
+    /// How long typing may pause before the text goes to the device. A write per key costs the keystroke a few
+    /// milliseconds of parsing and listing, so the keys of one burst are written together.
+    private let writeDelay: Duration
     private var deletion: PendingDeletion?
+    /// Sends when the pause is over, unless a change restarts it or a send comes first.
+    private var sendAfterPause: Task<Void, Never>?
+    /// The latest text typed, not yet on the device, and the task that writes it when the typing pauses.
+    private var unwritten: (note: NoteEntry, text: String)?
+    private var writeAfterPause: Task<Void, Never>?
     /// The window's undo manager, which reaches the pending deletion through Command-Z and the shake.
     private weak var undoManager: UndoManager?
 
@@ -40,7 +58,9 @@ final class AppModel {
         library: NoteLibrary,
         session: GitHubSession,
         defaults: UserDefaults,
-        undoWindow: Duration = .seconds(10)
+        undoWindow: Duration = .seconds(10),
+        sendDelay: Duration = .seconds(30),
+        writeDelay: Duration = .milliseconds(300)
     ) {
         self.configuration = configuration
         self.oauth = oauth
@@ -50,6 +70,8 @@ final class AppModel {
         self.session = session
         self.defaults = defaults
         self.undoWindow = undoWindow
+        self.sendDelay = sendDelay
+        self.writeDelay = writeDelay
 
         isSignedIn = session.hasTokens
         lastSentAt = defaults.object(forKey: Keys.lastSentAt) as? Date
@@ -123,13 +145,68 @@ final class AppModel {
     /// Saves the note on the device and starts sending it. Returns once it is saved; sending never holds up writing.
     func saveNote(body: String) throws {
         try outbox.add(body: body)
+        sendChanges()
+    }
+
+    /// Changes the note. The text goes to the device as soon as the typing pauses, and GitHub gets one commit
+    /// when the note is closed, another is selected, the app leaves the front, or the typing pauses for
+    /// `sendDelay`, whichever comes first. A note emptied is not written: it keeps its last text, as a new
+    /// note is not sent while it is whitespace.
+    func editNote(_ note: NoteEntry, text: String) {
+        guard !text.allSatisfy(\.isWhitespace) else { return }
+        unwritten = (note, text)
+        writeAfterPause?.cancel()
+        writeAfterPause = Task(name: "write-after-pause") { [weak self, writeDelay] in
+            do {
+                try await Task.sleep(for: writeDelay)
+            } catch {
+                // Cancelled: another key restarted the pause, or a send wrote first.
+                return
+            }
+            // Cancelled between the wake and this turn of the main actor, by a key or a send.
+            guard !Task.isCancelled else { return }
+            self?.writeUnwritten()
+        }
+        sendAfterPause?.cancel()
+        sendAfterPause = Task(name: "send-after-pause") { [weak self, sendDelay] in
+            do {
+                try await Task.sleep(for: sendDelay)
+            } catch {
+                // Cancelled: another change restarted the pause, or a send came first.
+                return
+            }
+            // Cancelled between the wake and this turn of the main actor, by a change or a send.
+            guard !Task.isCancelled else { return }
+            self?.sendAfterPause = nil
+            self?.writeUnwritten()
+            await self?.outbox.send()
+        }
+    }
+
+    /// Sends what waits, now. Every send of the model goes through here or `syncNotes`, so a send always ends the pauses.
+    func sendChanges() {
+        endPauses()
         Task { await outbox.send() }
     }
 
-    /// Changes the note on the device and starts sending the change, as with a new note.
-    func editNote(_ note: NoteEntry, text: String) throws {
-        try outbox.edit(note, text: text)
-        Task { await outbox.send() }
+    /// Ends the pauses: the text waiting goes to the device, and the send that was to follow is the caller's.
+    private func endPauses() {
+        sendAfterPause?.cancel()
+        sendAfterPause = nil
+        writeUnwritten()
+    }
+
+    /// Writes the latest text to the device, if there is one waiting.
+    private func writeUnwritten() {
+        writeAfterPause?.cancel()
+        writeAfterPause = nil
+        guard let (note, text) = unwritten else { return }
+        unwritten = nil
+        do {
+            try outbox.edit(note, text: text)
+        } catch {
+            editFailed = true
+        }
     }
 
     /// Takes the note out of the list and opens the undo window; the deletion is recorded and sent when the window closes.
@@ -155,7 +232,7 @@ final class AppModel {
         closeUndoWindow()
         do {
             try outbox.delete(note)
-            Task { await outbox.send() }
+            sendChanges()
         } catch {
             deletionFailed = true
         }
@@ -195,6 +272,7 @@ final class AppModel {
 
     /// Sends what is waiting, then brings the list in line with the repository.
     func syncNotes() async {
+        endPauses()
         await outbox.send()
         if let repository {
             await library.refresh(from: repository)
@@ -202,8 +280,10 @@ final class AppModel {
     }
 
     private func clear() {
-        // A deletion still in its window stays on the device through the sign-out, as a recorded one does.
+        // A deletion still in its window stays on the device through the sign-out, as a recorded one does,
+        // and so does an edit whose pause is still running.
         queuePendingDeletion()
+        endPauses()
         isSignedIn = false
         accountLogin = nil
         repository = nil

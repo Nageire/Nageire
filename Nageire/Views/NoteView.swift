@@ -1,78 +1,39 @@
 import SwiftUI
 
-/// One note, read and edited on one surface. Until phase 2 the edit is the plain text view behind an Edit button.
+/// One note, read and edited on one surface. There is nothing to save: the text is on the device as it is typed.
 struct NoteView: View {
     let note: NoteEntry
-    /// The text being edited. Nil while the note is only read.
-    @Binding var draft: String?
     let onDelete: () -> Void
 
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
-    @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
-    @State private var saveFailed = false
+    /// The editor's text. Starts as the note's, and is not replaced by what a refresh brings while the note is open.
+    @State private var text: String
+
+    init(note: NoteEntry, onDelete: @escaping () -> Void) {
+        self.note = note
+        self.onDelete = onDelete
+        _text = State(initialValue: note.editableText)
+    }
 
     var body: some View {
-        Group {
-            if let draft {
-                NoteEditor(text: Binding { draft } set: { self.draft = $0 })
-                    // The note can leave the list under the edit, deleted on another device.
-                    .onDisappear { self.draft = nil }
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        NoteHeader(note: note)
-                        Text(verbatim: note.body)
-                            .noteBodyStyle(serif: serifBody)
-                            .foregroundStyle(.ink)
-                            .textSelection(.enabled)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    #if os(macOS)
-                    // The note column centers its text at a reading width.
-                    .frame(maxWidth: 680)
-                    .padding(.top, 28)
-                    .padding(.horizontal, 48)
-                    .frame(maxWidth: .infinity)
-                    #else
-                    .padding(.horizontal, Spacing.gutter)
-                    .padding(.vertical, Spacing.rowPadding)
-                    #endif
-                }
-            }
-        }
-        .background(.paper)
-        #if os(macOS)
-        .navigationTitle(Text(verbatim: note.displayTitle))
-        #else
-        // The title is the first line of the text, which the screen already shows.
-        .navigationTitle(Text(verbatim: ""))
-        #endif
-        .toolbarTitleDisplayMode(.inline)
-        // In a narrow window the back button would leave the note with the edit neither saved nor cancelled.
-        .navigationBarBackButtonHidden(draft != nil)
-        .saveFailureAlert(isPresented: $saveFailed)
-        .toolbar {
-            if let draft {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { self.draft = nil }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        do {
-                            try model.editNote(note, text: draft)
-                            self.draft = nil
-                        } catch {
-                            saveFailed = true
-                        }
-                    }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(draft.allSatisfy(\.isWhitespace))
-                }
-            } else {
+        @Bindable var model = model
+        NoteEditor(text: $text, focusesOnAppear: false, isNoteColumn: true, header: AnyView(NoteHeader(note: note).padding(.bottom, Spacing.headerGap)))
+            .background(.paper)
+            .onChange(of: text) { model.editNote(note, text: text) }
+            // Closing the note, or opening another in its place, is one of the moments the edits go to GitHub.
+            .onDisappear { model.sendChanges() }
+            #if os(macOS)
+            .navigationTitle(Text(verbatim: note.displayTitle))
+            #else
+            // The title is the first line of the text, which the screen already shows.
+            .navigationTitle(Text(verbatim: ""))
+            #endif
+            .toolbarTitleDisplayMode(.inline)
+            .saveFailureAlert(isPresented: $model.editFailed)
+            .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button("Edit", systemImage: "pencil") { draft = note.editableText }
-                    ShareLink(item: note.body)
+                    ShareLink(item: text)
                     Menu("More", systemImage: "ellipsis") {
                         Button("Open on GitHub", systemImage: "arrow.up.right.square") {
                             if let url = gitHubURL { openURL(url) }
@@ -84,7 +45,6 @@ struct NoteView: View {
                     }
                 }
             }
-        }
     }
 
     /// The note's page on GitHub, on the default branch. Nil while GitHub does not have the note as it is shown.
@@ -96,7 +56,7 @@ struct NoteView: View {
 
 #Preview {
     NavigationStack {
-        NoteView(note: SampleData.notes()[4], draft: .constant(nil)) {}
+        NoteView(note: SampleData.notes()[4]) {}
     }
     .sample(AppModel.sample())
 }

@@ -16,16 +16,20 @@ private final class ReceivedText {
 @MainActor
 struct MarkdownTextViewTests {
     /// A text view with its coordinator as its delegate, the caret where asked, and what its binding received.
-    private func makeView(text: String, caret: Int) -> (view: NoteTextView, coordinator: MarkdownTextView.Coordinator, received: ReceivedText) {
+    private func makeView(text: String, caret: Int) -> (view: NoteTextView, coordinator: MarkdownTextCoordinator, received: ReceivedText) {
         let received = ReceivedText(text)
-        let coordinator = MarkdownTextView.Coordinator(text: Binding { received.text } set: { received.text = $0 })
+        let coordinator = MarkdownTextCoordinator(text: Binding { received.text } set: { received.text = $0 })
         let view = NoteTextView(usingTextLayoutManager: true)
         view.delegate = coordinator
+        view.textLayoutManager?.delegate = coordinator
+        view.contentStorage?.delegate = coordinator
         coordinator.view = view
         #if canImport(UIKit)
+        coordinator.apply(EditorFonts(serif: false, traits: view.traitCollection), to: view)
         view.text = text
         view.selectedRange = NSRange(location: caret, length: 0)
         #else
+        coordinator.apply(EditorFonts(serif: false), to: view)
         view.string = text
         view.setSelectedRange(NSRange(location: caret, length: 0))
         #endif
@@ -68,6 +72,21 @@ struct MarkdownTextViewTests {
         #expect(received.text == "a")
     }
     #endif
+
+    @Test func aTapOnTheBoxOfATaskTogglesItAndATapBesideItDoesNot() throws {
+        let (view, coordinator, received) = makeView(text: "- [ ] a", caret: 7)
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 200)
+        let layoutManager = try #require(view.textLayoutManager)
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let fragment = try #require(layoutManager.textLayoutFragment(for: .zero) as? CheckboxLayoutFragment)
+        let box = fragment.boxRect.offsetBy(dx: fragment.layoutFragmentFrame.minX, dy: fragment.layoutFragmentFrame.minY)
+
+        #expect(!coordinator.toggleBox(at: CGPoint(x: box.maxX + 40, y: box.midY)))
+        #expect(received.text == "- [ ] a")
+        #expect(coordinator.toggleBox(at: CGPoint(x: box.midX, y: box.midY)))
+        #expect(received.text == "- [x] a")
+        #expect(view.selection == NSRange(location: 7, length: 0))
+    }
 
     @Test func aCommandEditsTheViewAndReachesTheBinding() {
         let (view, coordinator, received) = makeView(text: "- a", caret: 3)

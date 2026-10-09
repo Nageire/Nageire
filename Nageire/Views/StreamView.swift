@@ -10,8 +10,6 @@ struct StreamView: View {
     @State private var isComposingInSheet = false
     @State private var newNoteRequests = NewNoteRequests()
     @AppStorage(AppModel.Keys.draft) private var draft = ""
-    /// The text of the note being edited in the detail column. Nil while no note is being edited.
-    @State private var editDraft: String?
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #else
@@ -77,7 +75,9 @@ struct StreamView: View {
                 .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 480)
         } detail: {
             if let selection, let note = notes.first(where: { $0.id == selection }) {
-                NoteView(note: note, draft: $editDraft) { delete(note) }
+                NoteView(note: note) { delete(note) }
+                    // Another note is another screen, with text of its own; the same note sent or edited is not.
+                    .id(note.id)
                     .toolbar {
                         // In a wide window the button belongs to the detail column: the sidebar's
                         // share of the toolbar is too narrow for it and drops it into the overflow menu.
@@ -174,9 +174,6 @@ struct StreamView: View {
                 }
             }
             #endif
-            // In a wide window the list sits beside the note being edited, and selecting
-            // another note there would discard the edit without a word.
-            .disabled(editDraft != nil)
         } else if query.isEmpty {
             EmptyState()
         } else {
@@ -199,12 +196,13 @@ struct StreamView: View {
         #endif
     }
 
-    /// False while the settings sheet covers the list or a note is being edited, which disables the menu command instead of opening a sheet under a sheet.
+    /// False while the settings sheet covers the list, which disables the menu command instead of opening a sheet under a sheet.
     private var canStartNewNote: Bool {
         #if !os(macOS)
-        if isShowingSettings { return false }
+        return !isShowingSettings
+        #else
+        return true
         #endif
-        return editDraft == nil
     }
 
     private func startNewNote() {
