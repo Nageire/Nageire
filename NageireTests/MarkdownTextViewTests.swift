@@ -16,9 +16,9 @@ private final class ReceivedText {
 @MainActor
 struct MarkdownTextViewTests {
     /// A text view with its coordinator as its delegate, the caret where asked, and what its binding received.
-    private func makeView(text: String, caret: Int) -> (view: NoteTextView, coordinator: MarkdownTextView.Coordinator, received: ReceivedText) {
+    private func makeView(text: String, caret: Int) -> (view: NoteTextView, coordinator: MarkdownTextCoordinator, received: ReceivedText) {
         let received = ReceivedText(text)
-        let coordinator = MarkdownTextView.Coordinator(text: Binding { received.text } set: { received.text = $0 })
+        let coordinator = MarkdownTextCoordinator(text: Binding { received.text } set: { received.text = $0 })
         let view = NoteTextView(usingTextLayoutManager: true)
         view.delegate = coordinator
         coordinator.view = view

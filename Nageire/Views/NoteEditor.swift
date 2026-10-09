@@ -24,7 +24,7 @@ struct NoteEditor: View {
 /// The way from the Format menu to the editor that has the focus. A class, so that the focused value compares by identity.
 final class EditorRequests {
     /// The text view's coordinator, set when the view is made.
-    weak var editor: MarkdownTextView.Coordinator?
+    weak var editor: MarkdownTextCoordinator?
 
     func request(_ command: EditorCommand) {
         editor?.perform(command)
