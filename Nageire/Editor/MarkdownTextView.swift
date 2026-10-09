@@ -67,16 +67,21 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         let start = caretParagraphStart(in: storage)
         let left = lastCaretParagraphStart
         lastCaretParagraphStart = start
+        for location in [left, start].compactMap({ $0 }) {
+            restyle(paragraph(at: location, in: storage), in: storage)
+        }
+    }
+
+    /// Has the content storage ask for the paragraph anew, which styles it again.
+    private func restyle(_ range: NSRange, in storage: NSTextStorage) {
         // The content storage keeps the paragraphs it made and hands them out again when the layout alone is
         // invalidated; only an edit of the storage makes it ask for one anew, and an edit of the attributes that
         // changes none is enough. Each paragraph is a session of its own: within one session the storage unites
-        // the ranges, and every paragraph between the two would be asked for; an edit outside a session reaches the
+        // the ranges, and every paragraph between two would be asked for; an edit outside a session reaches the
         // screen only with the next event after a click.
-        for location in [left, start].compactMap({ $0 }) {
-            storage.beginEditing()
-            storage.edited(.editedAttributes, range: paragraph(at: location, in: storage), changeInLength: 0)
-            storage.endEditing()
-        }
+        storage.beginEditing()
+        storage.edited(.editedAttributes, range: range, changeInLength: 0)
+        storage.endEditing()
     }
 
     private func caretParagraphStart(in storage: NSTextStorage) -> Int {
