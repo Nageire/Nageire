@@ -35,7 +35,7 @@ WYSIWYG was considered and turned down. A rich-text model has to be converted to
 
 A new note keeps its button. The draft is saved on the device on every change and survives closing the sheet and relaunching the app; "完了" sends it as one commit, as today. The toss is a gesture with an end, and a gesture with an end deserves a button.
 
-An existing note has no Edit, Save, or Cancel. Changes are saved on the device as they are typed, and one commit is sent when the note is closed, when another note is selected, when the app goes to the background, or after thirty seconds without typing, whichever comes first. A note held open for an hour of writing gets a handful of commits, not hundreds. The Edit mode exists today to protect an edit from being discarded by navigating away; saving as typed removes the thing it protects against. The conflict rule from concept.md stays: the change that arrives last wins.
+An existing note has no Edit, Save, or Cancel. Changes are saved on the device as they are typed, and one commit is sent when the note is closed, when another note is selected, when the app goes to the background, or after thirty seconds without typing, whichever comes first. A note held open for an hour of writing gets a handful of commits, not hundreds. The Edit mode exists today to protect an edit from being discarded by navigating away; saving as typed removes the thing it protects against. The conflict rule from concept.md stays: the change that arrives last wins. A note emptied in the editor is not saved as empty: the device and GitHub keep its last text, as a new note is not sent while it is whitespace, and deleting is the menu's.
 
 ## Attachments
 

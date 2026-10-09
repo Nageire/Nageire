@@ -21,11 +21,15 @@ struct MarkdownTextViewTests {
         let coordinator = MarkdownTextCoordinator(text: Binding { received.text } set: { received.text = $0 })
         let view = NoteTextView(usingTextLayoutManager: true)
         view.delegate = coordinator
+        view.textLayoutManager?.delegate = coordinator
+        view.contentStorage?.delegate = coordinator
         coordinator.view = view
         #if canImport(UIKit)
+        coordinator.apply(EditorFonts(serif: false, traits: view.traitCollection), to: view)
         view.text = text
         view.selectedRange = NSRange(location: caret, length: 0)
         #else
+        coordinator.apply(EditorFonts(serif: false), to: view)
         view.string = text
         view.setSelectedRange(NSRange(location: caret, length: 0))
         #endif

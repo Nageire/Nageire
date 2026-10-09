@@ -37,6 +37,10 @@ nonisolated enum Spacing {
     /// The distance from the edge of the screen to its content.
     #if os(macOS)
     static let gutter: CGFloat = 24
+    /// Above the note column's content, at its sides at the least, and the width it is centered at.
+    static let columnTop: CGFloat = 28
+    static let columnSide: CGFloat = 48
+    static let readingWidth: CGFloat = 680
     #else
     static let gutter: CGFloat = 20
     #endif
@@ -50,6 +54,8 @@ nonisolated enum Spacing {
     static let rowPadding: CGFloat = 12
     /// Between the lines of a list row.
     static let rowGap: CGFloat = 4
+    /// Between the note's header and its text.
+    static let headerGap: CGFloat = 20
     /// The height of a button or a field, and the least a tap target measures.
     static let control: CGFloat = 44
     static let controlCompact: CGFloat = 34

@@ -1,10 +1,16 @@
 import SwiftUI
 
-/// The editor, shared by writing a new note and editing one. The button that saves belongs to the screen around it.
+/// The editor, shared by writing a new note and editing one. The button that saves a new note belongs to the sheet around it.
 struct NoteEditor: View {
     @Binding var text: String
     /// Changes each time the cursor should go to the editor even though it is already showing.
     var focusRequest = 0
+    /// The toss sheet is for writing and takes the keyboard as it appears; a note opens to be read, and a tap into the text takes it.
+    var focusesOnAppear = true
+    /// The note column on macOS centers its text at the reading width; the toss column keeps the gutter.
+    var isNoteColumn = false
+    /// Above the text, scrolling with it: the note's header.
+    var header: AnyView?
 
     @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     /// The cursor goes into the editor when it appears, and on each request after that.
@@ -14,9 +20,13 @@ struct NoteEditor: View {
     @State private var isFocused = false
 
     var body: some View {
-        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused)
+        MarkdownTextView(text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused, isNoteColumn: isNoteColumn, header: header)
             .focusedSceneValue(\.editorRequests, isFocused ? requests : nil)
-            .onAppear { focusRequests += 1 }
+            .onAppear {
+                if focusesOnAppear {
+                    focusRequests += 1
+                }
+            }
             .onChange(of: focusRequest) { focusRequests += 1 }
     }
 }
@@ -47,7 +57,7 @@ extension View {
 
 #Preview {
     @Previewable @State var text = SampleData.notes()[4].editableText
-    NoteEditor(text: $text)
+    NoteEditor(text: $text, focusesOnAppear: false, isNoteColumn: true, header: AnyView(NoteHeader(note: SampleData.notes()[4]).padding(.bottom, Spacing.headerGap)))
         .background(.paper)
 }
 

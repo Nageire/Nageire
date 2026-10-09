@@ -13,6 +13,10 @@ struct MarkdownTextView {
     var requests: EditorRequests?
     /// Whether the view has the keyboard, for the Format menu to be offered only then.
     var isFocused: Binding<Bool> = .constant(false)
+    /// The note column on macOS centers its text at the reading width; the toss column keeps the gutter.
+    var isNoteColumn = false
+    /// Laid out above the text inside the view, so that it scrolls with the text.
+    var header: AnyView?
 
     func makeCoordinator() -> MarkdownTextCoordinator {
         MarkdownTextCoordinator(text: $text)
@@ -36,6 +40,8 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
     weak var view: NoteTextView?
     /// The start of the paragraph that held the caret when the selection last moved, to restyle when it leaves.
     private var lastCaretParagraphStart: Int?
+    /// Whether the view has the keyboard. Without it there is no caret, and no line shows its raw marks.
+    private var hasFocus = false
 
     init(text: Binding<String>) {
         self.text = text
@@ -45,15 +51,20 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         guard let styler, let storage = textContentStorage.textStorage else { return nil }
         let paragraph = (storage.string as NSString).substring(with: range)
         // The paragraphs an edit touched are asked for before the selection follows it, and a stale caret is still on the paragraph being edited.
-        let holdsCaret = range.location == caretParagraphStart(in: storage)
+        let holdsCaret = hasFocus && range.location == caretParagraphStart(in: storage)
         return NSTextParagraph(attributedString: styler.styled(paragraph, isFirst: range.location == 0, holdsCaret: holdsCaret))
     }
 
     /// Restyles the paragraph the caret left and the one it entered, if it moved to another.
     func selectionDidChange() {
+        guard let storage = view?.contentStorage?.textStorage, caretParagraphStart(in: storage) != lastCaretParagraphStart else { return }
+        restyleCaretParagraph()
+    }
+
+    /// Restyles the paragraph that held the caret and the one that holds it now.
+    private func restyleCaretParagraph() {
         guard let storage = view?.contentStorage?.textStorage else { return }
         let start = caretParagraphStart(in: storage)
-        guard start != lastCaretParagraphStart else { return }
         let left = lastCaretParagraphStart
         lastCaretParagraphStart = start
         // The content storage keeps the paragraphs it made and hands them out again when the layout alone is
@@ -72,8 +83,11 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         paragraph(at: view?.selection.location ?? 0, in: storage).location
     }
 
-    /// The view took or gave up the keyboard. It can do so inside a SwiftUI update, where state is not written.
+    /// The view took or gave up the keyboard, and with it the caret, whose line shows its raw marks.
+    /// It can do so inside a SwiftUI update, where state is not written.
     func focusDidChange(to isFocused: Bool) {
+        hasFocus = isFocused
+        restyleCaretParagraph()
         Task { @MainActor in
             self.isFocused.wrappedValue = isFocused
         }
@@ -165,6 +179,12 @@ extension MarkdownTextView: UIViewRepresentable {
         bar.view.autoresizingMask = .flexibleWidth
         view.inputAccessoryView = bar.view
         view.accessoryBar = bar
+        if let header {
+            let controller = UIHostingController(rootView: header)
+            controller.view.backgroundColor = .clear
+            view.addSubview(controller.view)
+            view.header = controller
+        }
         return view
     }
 
@@ -172,6 +192,10 @@ extension MarkdownTextView: UIViewRepresentable {
         let coordinator = context.coordinator
         coordinator.text = $text
         coordinator.isFocused = isFocused
+        if let header {
+            view.header?.rootView = header
+            view.headerNeedsLayout = true
+        }
         if view.text != text {
             view.text = text
         }
@@ -214,6 +238,10 @@ final class NoteTextView: UITextView {
     var onTextSizeChange: ((NoteTextView) -> Void)?
     /// The controller of the accessory bar, which its view does not keep alive.
     var accessoryBar: UIViewController?
+    /// The note's header, a subview above the text that scrolls with it; the text starts under it.
+    var header: UIHostingController<AnyView>?
+    /// Set when the header's content or the width changed; the header is measured again at the next layout.
+    var headerNeedsLayout = true
     /// One name over both platforms' selection, for the coordinator.
     var selection: NSRange { selectedRange }
     /// A request that came before the view was in a window, where it could not take the cursor.
@@ -226,27 +254,20 @@ final class NoteTextView: UITextView {
         }
     }
 
-    required init?(coder: NSCoder) {
-        fatalError("The view is made in code, never decoded.")
-    }
+    private var coordinator: MarkdownTextCoordinator? { delegate as? MarkdownTextCoordinator }
 
-    var contentStorage: NSTextContentStorage? {
-        textLayoutManager?.textContentManager as? NSTextContentStorage
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        if window != nil, wantsFocus {
-            wantsFocus = false
-            becomeFirstResponder()
-        }
-    }
-
-    func focus() {
-        if window != nil {
-            becomeFirstResponder()
-        } else {
-            wantsFocus = true
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard let header else { return }
+        let width = bounds.width - 2 * Spacing.gutter
+        if headerNeedsLayout || header.view.frame.width != width {
+            headerNeedsLayout = false
+            let height = header.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+            header.view.frame = CGRect(x: Spacing.gutter, y: Spacing.rowPadding, width: width, height: height)
+            // Set only when it changes: the inset invalidates the whole layout.
+            if textContainerInset.top != Spacing.rowPadding + height {
+                textContainerInset.top = Spacing.rowPadding + height
+            }
         }
     }
 
@@ -277,6 +298,12 @@ extension MarkdownTextView: NSViewRepresentable {
         view.delegate = coordinator
         view.textLayoutManager?.delegate = coordinator
         view.contentStorage?.delegate = coordinator
+        view.isNoteColumn = isNoteColumn
+        if let header {
+            let controller = NSHostingController(rootView: header)
+            view.addSubview(controller.view)
+            view.header = controller
+        }
         coordinator.view = view
         coordinator.isFocused = isFocused
         requests?.editor = coordinator
@@ -299,6 +326,11 @@ extension MarkdownTextView: NSViewRepresentable {
         let coordinator = context.coordinator
         coordinator.text = $text
         coordinator.isFocused = isFocused
+        if let header {
+            view.header?.rootView = header
+            view.headerNeedsLayout = true
+            view.needsLayout = true
+        }
         if view.string != text {
             view.string = text
         }
@@ -333,6 +365,12 @@ extension MarkdownTextCoordinator: NSTextViewDelegate {
 final class NoteTextView: NSTextView {
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
+    /// The note's header, a subview above the text that scrolls with it; the text starts under it.
+    var header: NSHostingController<AnyView>?
+    /// Set when the header's content changed; the header is measured again at the next layout.
+    var headerNeedsLayout = true
+    /// The note column centers its text at the reading width under the column's top; the toss column keeps the gutter.
+    var isNoteColumn = false
     /// One name over both platforms' selection, for the coordinator.
     var selection: NSRange { selectedRange() }
 
@@ -340,29 +378,23 @@ final class NoteTextView: NSTextView {
         textContentStorage
     }
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window != nil, wantsFocus {
-            wantsFocus = false
-            window?.makeFirstResponder(self)
-        }
-    }
+    private var coordinator: MarkdownTextCoordinator? { delegate as? MarkdownTextCoordinator }
 
-    // The text delegate hears of editing beginning with the first change, not with the keyboard.
-    override func becomeFirstResponder() -> Bool {
-        let became = super.becomeFirstResponder()
-        if became {
-            (delegate as? MarkdownTextCoordinator)?.focusDidChange(to: true)
+    override func layout() {
+        let side = isNoteColumn ? max(Spacing.columnSide, (bounds.width - Spacing.readingWidth) / 2) : Spacing.gutter
+        let top = isNoteColumn ? Spacing.columnTop : Spacing.rowPadding
+        let width = bounds.width - 2 * side
+        if let header, headerNeedsLayout || header.view.frame.width != width {
+            headerNeedsLayout = false
+            let height = header.sizeThatFits(in: NSSize(width: width, height: .greatestFiniteMagnitude)).height
+            header.view.frame = NSRect(x: side, y: top, width: width, height: height)
         }
-        return became
-    }
-
-    override func resignFirstResponder() -> Bool {
-        let resigned = super.resignFirstResponder()
-        if resigned {
-            (delegate as? MarkdownTextCoordinator)?.focusDidChange(to: false)
+        // The inset is the same above and below; the text ends with the room the header takes above it.
+        let inset = NSSize(width: side, height: top + (header?.view.frame.height ?? 0))
+        if textContainerInset != inset {
+            textContainerInset = inset
         }
-        return resigned
+        super.layout()
     }
 
     func focus() {
