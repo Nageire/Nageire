@@ -72,7 +72,7 @@ struct MarkdownLineTests {
 
     @Test func aLinkIsItsNameAndItsAddressBetweenMarks() {
         #expect(spans(of: "次は[教室の予定](https://example.com/s)を見る") == [
-            "[ mark", "教室の予定 linkText", "]( mark", "https://example.com/s linkAddress", ") mark",
+            "[ linkMark", "教室の予定 linkText", "]( linkMark", "https://example.com/s linkAddress", ") linkMark",
         ])
     }
 

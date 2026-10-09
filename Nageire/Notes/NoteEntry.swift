@@ -78,10 +78,10 @@ struct NoteEntry: Identifiable, Hashable {
 
     /// A Japanese sentence mark, or a period that is followed by a space or ends the line, so that a decimal or an address does not end a sentence.
     private static let sentenceEnd = /[。！？!?]|\.(?=\s|$)/
-    /// The line without its Markdown marks: the block marker, emphasis and code marks, and a link's address.
+    /// The line without its Markdown marks: the block marker, emphasis and code marks, and a link's marks and address.
     private static func plainText(of markdown: MarkdownLine, in line: String) -> String {
         var text = line[markdown.prefix.upperBound...]
-        for span in markdown.spans.reversed() where span.role == .mark || span.role == .linkAddress {
+        for span in markdown.spans.reversed() where [.mark, .linkMark, .linkAddress].contains(span.role) {
             text.removeSubrange(span.range)
         }
         return String(text)

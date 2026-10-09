@@ -143,7 +143,7 @@ struct MarkdownStyler {
         for span in line.spans {
             let range = NSRange(span.range, in: string)
             switch span.role {
-            case .mark, .linkAddress:
+            case .mark, .linkMark, .linkAddress:
                 styled.addAttributes(marks, range: range)
             case .bold:
                 styled.addAttribute(.font, value: fonts.bold, range: range)
