@@ -120,7 +120,7 @@ struct MarkdownStyler {
         case .item, .quote, .task:
             // The indentation, the marker, and the space after it, then for a task the box and one more space.
             let markerEnd = line.box?.lowerBound ?? line.prefix.upperBound
-            let indentation = text[line.prefix].prefix { $0.isWhitespace }
+            let indentation = text[line.indentation]
             let marker = String(text[indentation.endIndex..<markerEnd].dropLast())
             let markerWidth = Self.width(of: marker, in: fonts.body)
             // A one-character marker sits in the design's column; a number is wider than the column and keeps the gap alone.

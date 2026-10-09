@@ -108,14 +108,16 @@ private struct Dimming: ViewModifier {
     }
 }
 
-/// A rule one physical pixel thick, across the width it is given.
+/// A rule one physical pixel thick, across the width it is given, or down the height when vertical.
 struct Hairline: View {
+    var axis = Axis.horizontal
+
     @Environment(\.pixelLength) private var pixelLength
 
     var body: some View {
         Rectangle()
             .fill(.hairline)
-            .frame(height: pixelLength)
+            .frame(width: axis == .vertical ? pixelLength : nil, height: axis == .horizontal ? pixelLength : nil)
     }
 }
 

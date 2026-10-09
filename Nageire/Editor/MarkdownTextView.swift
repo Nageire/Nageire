@@ -61,7 +61,7 @@ struct MarkdownTextView {
         }
 
         private func caretParagraphStart(in storage: NSTextStorage) -> Int {
-            paragraph(at: view?.selectionStart ?? 0, in: storage).location
+            paragraph(at: view?.selection.location ?? 0, in: storage).location
         }
 
         /// The paragraph around a location, which an edit since may have moved past the end.
@@ -154,7 +154,7 @@ extension MarkdownTextView.Coordinator: UITextViewDelegate {
 final class NoteTextView: UITextView {
     var onTextSizeChange: ((NoteTextView) -> Void)?
     /// One name over both platforms' selection, for the coordinator.
-    var selectionStart: Int { selectedRange.location }
+    var selection: NSRange { selectedRange }
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
 
@@ -255,7 +255,7 @@ final class NoteTextView: NSTextView {
     /// A request that came before the view was in a window, where it could not take the cursor.
     private var wantsFocus = false
     /// One name over both platforms' selection, for the coordinator.
-    var selectionStart: Int { selectedRange().location }
+    var selection: NSRange { selectedRange() }
 
     var contentStorage: NSTextContentStorage? {
         textContentStorage

@@ -34,6 +34,8 @@ struct MarkdownLine: Equatable {
     }
 
     let kind: Kind
+    /// The spaces and tabs the line opens with, on a line of any kind.
+    let indentation: Range<String.Index>
     /// The indentation, the marker, and the space after it. Empty for text, a blank line, and an image.
     let prefix: Range<String.Index>
     /// The `[ ]` or `[x]` of a task.
@@ -44,9 +46,10 @@ struct MarkdownLine: Equatable {
     init(_ line: some StringProtocol) {
         let line = Substring(line)
         let none = line.startIndex..<line.startIndex
+        let indentation = line.startIndex..<line.prefix { $0 == " " || $0 == "\t" }.endIndex
         if line.contains("!["), let image = line.trimmingCharacters(in: .whitespaces).wholeMatch(of: Self.imageLine) {
             let path = String(image.output.1)
-            self.init(kind: .image(file: String(path[fileNameStart(of: path)...]), path: path), prefix: none, box: nil)
+            self.init(kind: .image(file: String(path[fileNameStart(of: path)...]), path: path), indentation: indentation, prefix: none, box: nil)
         } else if let marker = line.prefixMatch(of: Self.blockMarker) {
             let (_, heading, box, done, quote) = marker.output
             let kind: Kind = if let heading {
@@ -58,14 +61,15 @@ struct MarkdownLine: Equatable {
             } else {
                 .item
             }
-            self.init(kind: kind, prefix: marker.range, box: box.map { $0.startIndex..<$0.endIndex }, spans: Self.spans(in: line[marker.range.upperBound...]))
+            self.init(kind: kind, indentation: indentation, prefix: marker.range, box: box.map { $0.startIndex..<$0.endIndex }, spans: Self.spans(in: line[marker.range.upperBound...]))
         } else {
-            self.init(kind: line.allSatisfy(\.isWhitespace) ? .blank : .text, prefix: none, box: nil, spans: Self.spans(in: line))
+            self.init(kind: line.allSatisfy(\.isWhitespace) ? .blank : .text, indentation: indentation, prefix: none, box: nil, spans: Self.spans(in: line))
         }
     }
 
-    private init(kind: Kind, prefix: Range<String.Index>, box: Range<String.Index>?, spans: [Span] = []) {
+    private init(kind: Kind, indentation: Range<String.Index>, prefix: Range<String.Index>, box: Range<String.Index>?, spans: [Span] = []) {
         self.kind = kind
+        self.indentation = indentation
         self.prefix = prefix
         self.box = box
         self.spans = spans
