@@ -28,12 +28,7 @@ nonisolated struct Thumbnail: Sendable {
         }
         // The thumbnail fills its frame: the side that falls short of the frame's sets the reduction, and the other side overflows.
         let reduction = min(max(size.width * scale / width, size.height * scale / height), 1)
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: (max(width, height) * reduction).rounded(.up),
-        ]
-        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        return Photo.reducedImage(source, longSide: Int((max(width, height) * reduction).rounded(.up)))
     }
 }
 
