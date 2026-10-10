@@ -187,7 +187,7 @@ struct GitHubAPIClientTests {
         ]}
         """
 
-    @Test func noteFilesListsTheMarkdownFilesOfTheNotesDirectoryWithTheirFullPaths() async throws {
+    @Test func noteFilesListsTheNotesAndTheirFilesWithTheirFullPaths() async throws {
         let rootTree = rootTree
         let (client, transport) = client { request in
             guard request.url!.path.hasSuffix("/git/trees/n1") else { return (200, rootTree) }
@@ -206,6 +206,7 @@ struct GitHubAPIClientTests {
 
         #expect(files == [
             RemoteFile(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", sha: "s3"),
+            RemoteFile(path: "notes/2026/10/photo.png", sha: "s4"),
             RemoteFile(path: "notes/2026/11/2026-11-01T090000Z-07de.md", sha: "s5"),
         ])
         #expect(transport.requests.map { $0.url!.absoluteString } == [

@@ -6,6 +6,15 @@ import Observation
 final class NoteLibrary {
     /// Newest first.
     private(set) var sent: [NoteEntry] = []
+    /// The notes' files GitHub holds, by repository path, with their blob identifiers, as of the last refresh.
+    /// Kept in memory only: they are fetched when their note is opened, and a refresh comes with every launch.
+    private(set) var remoteAttachments: [String: String] = [:] {
+        didSet {
+            if remoteAttachments != oldValue { listings += 1 }
+        }
+    }
+    /// Counts the listings of the notes' files, for an open note to fetch what a new one lists.
+    private(set) var listings = 0
 
     private let store: NoteStore
     private let api: GitHubAPI
@@ -81,6 +90,28 @@ final class NoteLibrary {
         generation += 1
         try? store.removeLibrary()
         sent = []
+        remoteAttachments = [:]
+    }
+
+    /// Fetches the files the note links to that GitHub holds and the device does not, one at a time, and keeps them.
+    /// Returns the paths of the files fetched, which stop at the first failure; the rest are tried the next time.
+    func fetchAttachments(of note: NoteEntry, from repository: Repository) async -> [String] {
+        let generation = generation
+        var fetched: [String] = []
+        for path in note.linkedAttachments.sorted() {
+            guard let sha = remoteAttachments[path], (try? store.attachment(at: path)) == nil else { continue }
+            // The copy emptied meanwhile is of another repository, or of none.
+            guard let contents = try? await api.blob(sha, in: repository), generation == self.generation,
+                  (try? store.saveToLibrary(StoredFile(path: path, contents: contents))) != nil
+            else { break }
+            fetched.append(path)
+        }
+        return fetched
+    }
+
+    /// The files GitHub was last listed with in a folder.
+    func remoteAttachments(inFolder folder: String) -> [String] {
+        remoteAttachments.keys.filter { $0.hasPrefix(folder + "/") }
     }
 
     private func bringInLine(with repository: Repository) async {
@@ -89,8 +120,24 @@ final class NoteLibrary {
             // The local side is read before the remote side. A note sent while this runs is then
             // in neither list, and is left alone instead of being dropped as "gone from GitHub".
             let local = Dictionary(uniqueKeysWithValues: try store.library().map { ($0.path, RemoteFile.sha(of: $0.contents)) })
-            let remote = try await api.noteFiles(in: repository)
+            let localAttachments = try store.libraryAttachments()
+            let listed = try await api.noteFiles(in: repository)
             guard generation == self.generation else { return }
+            var remote: [RemoteFile] = []
+            var attachments: [String: String] = [:]
+            for file in listed {
+                if file.path.hasSuffix(".md") {
+                    remote.append(file)
+                } else {
+                    attachments[file.path] = file.sha
+                }
+            }
+            remoteAttachments = attachments
+            // A file another device removed goes from this one too; one it changed is not looked at, since the
+            // comparison would read every file the device keeps.
+            for path in localAttachments where remoteAttachments[path] == nil {
+                try store.removeFromLibrary(path: path)
+            }
 
             let gone = Set(local.keys).subtracting(remote.map(\.path))
             let changed = remote.filter { local[$0.path] != $0.sha }

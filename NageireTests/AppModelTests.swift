@@ -505,4 +505,41 @@ struct AppModelTests {
         #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/scan.pdf") == Data("%PDF".utf8))
         #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/loop.gif") == gif)
     }
+
+    @Test func openingANoteWithAFileAnotherDeviceSentFetchesItAndTellsTheEditor() async throws {
+        let path = "notes/2026/10/2026-10-03T135812Z-a1b2.md"
+        api.remoteNotes = .success([path: "![a.jpeg](2026-10-03T135812Z-a1b2/a.jpeg)\n", "notes/2026/10/2026-10-03T135812Z-a1b2/a.jpeg": "a"])
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await model.syncNotes()
+        let note = try #require(model.notes().first)
+
+        await model.fetchAttachments(of: note)
+
+        #expect(model.attachmentArrivals == 1)
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/a.jpeg") == Data("a".utf8))
+    }
+
+    @Test func aFileAnotherDeviceSentIsRemovedOnlyWhenTheNoteLinkedItBeforeTheEdit() async throws {
+        let path = "notes/2026/10/2026-10-03T135812Z-a1b2.md"
+        let folder = "notes/2026/10/2026-10-03T135812Z-a1b2"
+        api.remoteNotes = .success([
+            path: "---\n---\n\n![a.jpeg](2026-10-03T135812Z-a1b2/a.jpeg)\n",
+            "\(folder)/a.jpeg": "a",
+            // Sent by a device whose edit linking it has not arrived.
+            "\(folder)/b.jpeg": "b",
+        ])
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await model.syncNotes()
+        let note = try #require(model.notes().first)
+
+        model.editNote(note, text: "No photo")
+        await writeToLand(of: model)
+        await model.outbox.send()
+
+        #expect(api.deleteFileAttempts.map(\.path) == ["\(folder)/a.jpeg"])
+    }
 }

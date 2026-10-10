@@ -43,6 +43,8 @@ final class AppModel {
             updatePhotoHold()
         }
     }
+    /// Counts the times files of other devices arrived, for the editor to show the thumbnails it had no file for.
+    private(set) var attachmentArrivals = 0
     /// How large a photo is kept and sent.
     var photoSize: PhotoSize {
         didSet { defaults.set(photoSize.rawValue, forKey: Keys.photoSize) }
@@ -123,6 +125,10 @@ final class AppModel {
         outbox.onSent = { [weak self, library] in
             library.add($0)
             self?.recordSend()
+        }
+        outbox.listedAttachments = { [library] note in
+            let linked = library.sent.first { $0.path == note.path }?.linkedAttachments ?? []
+            return library.remoteAttachments(inFolder: String(note.folderPath)).filter(linked.contains)
         }
         outbox.onChanged = { [weak self, library] in
             library.apply($0)
@@ -223,6 +229,14 @@ final class AppModel {
         }
         guard let target, note != nil || target == draftEntry else { throw CancellationError() }
         return try outbox.attach(file.contents, named: file.name, to: target)
+    }
+
+    /// Fetches the files of the note that other devices sent and this one does not have, as the note is opened.
+    func fetchAttachments(of note: NoteEntry) async {
+        guard let repository else { return }
+        if await !library.fetchAttachments(of: note, from: repository).isEmpty {
+            attachmentArrivals += 1
+        }
     }
 
     /// Lets go of the draft's note and its files once the draft is emptied, so that the next note is named when it is written.

@@ -149,8 +149,10 @@ extension AppModel {
         let store = InMemoryNoteStore(pending: notes.filter(\.isPending).map {
             Note(fileName: String($0.path[fileNameStart(of: $0.path)...]), contents: $0.contents)
         })
+        // The repository holds the notes' files as well, or a refresh would take them for files removed on GitHub.
+        let sent = notes.filter { !$0.isPending }
         let api = SampleAPI(
-            files: notes.filter { !$0.isPending }.map { StoredFile(path: $0.path, contents: Data($0.contents.utf8)) },
+            files: sent.map { StoredFile(path: $0.path, contents: Data($0.contents.utf8)) } + SampleData.attachments(of: sent),
             refusesWrites: scene == .refused
         )
         let oauth = SampleOAuth()
@@ -180,7 +182,7 @@ extension AppModel {
             // Choosing the repository fetches its notes, which is how the sent ones reach the list. It also empties
             // the library, so the files the notes link to go in after it, as a fetch of the notes' folders would put them.
             model.select(SampleData.repository)
-            for file in SampleData.attachments(of: notes.filter { !$0.isPending }) {
+            for file in SampleData.attachments(of: sent) {
                 try? store.saveToLibrary(file)
             }
         }

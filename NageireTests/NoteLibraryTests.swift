@@ -242,4 +242,36 @@ struct NoteLibraryTests {
         #expect(api.listedRepositories.count == 3)
         #expect(library.notes().map(\.body) == ["Edited"])
     }
+
+    private let folder = "notes/2026/10/2026-10-03T135812Z-a1b2"
+
+    @Test func aRefreshListsTheNotesFilesWithoutFetchingThemAndDropsOnesGoneFromGitHub() async throws {
+        api.remoteNotes = .success([october: "![a.jpeg](2026-10-03T135812Z-a1b2/a.jpeg)\n", "\(folder)/a.jpeg": "a"])
+        try store.saveToLibrary(StoredFile(path: "\(folder)/gone.jpeg", contents: Data("gone".utf8)))
+        let library = library()
+
+        await library.refresh(from: repository)
+
+        #expect(api.fetchedBlobs.count == 1)
+        #expect(library.remoteAttachments.keys.sorted() == ["\(folder)/a.jpeg"])
+        #expect(try store.libraryAttachments().isEmpty)
+    }
+
+    @Test func openingANoteFetchesTheFilesItLinksThatTheDeviceDoesNotHaveAndKeepsThem() async throws {
+        api.remoteNotes = .success([
+            october: "![a.jpeg](2026-10-03T135812Z-a1b2/a.jpeg)\n[b.pdf](2026-10-03T135812Z-a1b2/b.pdf)\n",
+            "\(folder)/a.jpeg": "a", "\(folder)/b.pdf": "b", "\(folder)/unlinked.jpeg": "u",
+        ])
+        let library = library()
+        await library.refresh(from: repository)
+        let note = try #require(library.notes().first)
+
+        let fetched = await library.fetchAttachments(of: note, from: repository)
+        let again = await library.fetchAttachments(of: note, from: repository)
+
+        #expect(fetched == ["\(folder)/a.jpeg", "\(folder)/b.pdf"])
+        #expect(again.isEmpty)
+        #expect(try store.attachment(at: "\(folder)/b.pdf") == Data("b".utf8))
+        #expect(try store.attachment(at: "\(folder)/unlinked.jpeg") == nil)
+    }
 }

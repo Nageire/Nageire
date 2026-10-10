@@ -95,4 +95,13 @@ struct MarkdownLineTests {
         #expect(MarkdownLine("2 * 3 = 6").spans.isEmpty)
         #expect(MarkdownLine("**開いたまま").spans.isEmpty)
     }
+
+    @Test func aLineThatIsOneLinkAloneGivesItsAddressAndAnyOtherLineNone() {
+        let line = "[scan.pdf](f/scan.pdf)"
+
+        #expect(MarkdownLine(line).soleLinkAddress(in: line) == "f/scan.pdf")
+        for other in ["見積もりは [scan.pdf](f/scan.pdf)", "[a](x) と [b](y)", "- [scan.pdf](f/scan.pdf)", "[a](x) (memo)"] {
+            #expect(MarkdownLine(other).soleLinkAddress(in: other) == nil)
+        }
+    }
 }

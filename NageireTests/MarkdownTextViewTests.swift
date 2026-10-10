@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import SwiftUI
 import Testing
@@ -120,5 +121,59 @@ struct MarkdownTextViewTests {
         let after = try #require(layoutManager.textLayoutFragment(for: .zero) as? ThumbnailLayoutFragment)
 
         #expect(after.image != nil)
+    }
+
+    @Test func aTapOnAThumbnailOrOnALineThatLinksAFileGivesItsLinkAndATapElsewhereNone() throws {
+        let (view, coordinator, _) = makeView(text: "![a.png](f/a.png)\n[scan.pdf](f/scan.pdf)\ntext", caret: 0)
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 600)
+        let layoutManager = try #require(view.textLayoutManager)
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let image = try #require(layoutManager.textLayoutFragment(for: .zero) as? ThumbnailLayoutFragment)
+        let thumbnail = image.thumbnailRect.offsetBy(dx: image.layoutFragmentFrame.minX, dy: image.layoutFragmentFrame.minY)
+        let fileLine = CGPoint(x: 10, y: image.layoutFragmentFrame.maxY + 5)
+
+        #expect(coordinator.thumbnailLink(at: CGPoint(x: thumbnail.midX, y: thumbnail.midY)) == "f/a.png")
+        #expect(coordinator.thumbnailLink(at: CGPoint(x: thumbnail.maxX + 40, y: thumbnail.midY)) == nil)
+        #expect(coordinator.fileLink(at: fileLine) == "f/scan.pdf")
+        #expect(coordinator.fileLink(at: CGPoint(x: 10, y: image.layoutFragmentFrame.maxY + 60)) == nil)
+    }
+
+    /// The file the editor has for a link, which a test makes available after the first layout.
+    private final class Files {
+        var files: [String: Data] = [:]
+    }
+
+    @Test func aFileThatArrivesAfterItsLineWasLaidOutIsShownOnceTheEditorIsToldOfArrivals() async throws {
+        let files = Files()
+        let (view, coordinator, _) = makeView(text: "![a.png](f/a.png)", caret: 0) { files.files[$0] }
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 400)
+        let layoutManager = try #require(view.textLayoutManager)
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        files.files["f/a.png"] = pngData(width: 400, height: 300)
+
+        coordinator.noteArrivals(1)
+        // Polled rather than awaited on the decode: without the arrival the line is never asked for again, and a wait would not end.
+        var image: CGImage?
+        for _ in 0..<200 where image == nil {
+            layoutManager.ensureLayout(for: layoutManager.documentRange)
+            image = (layoutManager.textLayoutFragment(for: .zero) as? ThumbnailLayoutFragment)?.image
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(image != nil)
+    }
+
+    @Test func aLineThatLinksAFileOpensOnlyWhereTheTapIsNotTheCaretsAndAThumbnailAlways() throws {
+        let (view, coordinator, _) = makeView(text: "![a.png](f/a.png)\n[scan.pdf](f/scan.pdf)", caret: 0)
+        view.frame = CGRect(x: 0, y: 0, width: 320, height: 600)
+        let layoutManager = try #require(view.textLayoutManager)
+        layoutManager.ensureLayout(for: layoutManager.documentRange)
+        let image = try #require(layoutManager.textLayoutFragment(for: .zero) as? ThumbnailLayoutFragment)
+        let thumbnail = image.thumbnailRect.offsetBy(dx: image.layoutFragmentFrame.minX, dy: image.layoutFragmentFrame.minY)
+        let fileLine = CGPoint(x: 10, y: image.layoutFragmentFrame.maxY + 5)
+
+        #expect(coordinator.decorationTap(at: fileLine, opensFileLink: false) == nil)
+        #expect(coordinator.decorationTap(at: fileLine, opensFileLink: true) != nil)
+        #expect(coordinator.decorationTap(at: CGPoint(x: thumbnail.midX, y: thumbnail.midY), opensFileLink: false) != nil)
     }
 }

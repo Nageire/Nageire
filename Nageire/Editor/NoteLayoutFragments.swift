@@ -83,6 +83,8 @@ nonisolated final class CheckboxLayoutFragment: NSTextLayoutFragment {
 /// While the device does not have the file, or has not decoded it yet, the thumbnail is its frame alone.
 nonisolated final class ThumbnailLayoutFragment: NSTextLayoutFragment {
     let image: CGImage?
+    /// The link of the line, which a tap on the thumbnail opens.
+    let link: String
     private let caption: CTLine
     private let captionWidth: CGFloat
     private let captionAscent: CGFloat
@@ -91,8 +93,9 @@ nonisolated final class ThumbnailLayoutFragment: NSTextLayoutFragment {
     /// One device pixel, the thickness of the frame.
     private let hairline: CGFloat
 
-    init(textElement: NSTextElement, file: String, thumbnail: Thumbnail?, font: PlatformFont, palette: DecorationPalette, hairline: CGFloat) {
+    init(textElement: NSTextElement, file: String, link: String, thumbnail: Thumbnail?, font: PlatformFont, palette: DecorationPalette, hairline: CGFloat) {
         image = thumbnail?.image
+        self.link = link
         let captionText = thumbnail.map { "\(file) · \($0.size)" } ?? file
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
@@ -120,7 +123,8 @@ nonisolated final class ThumbnailLayoutFragment: NSTextLayoutFragment {
         super.renderingSurfaceBounds.union(thumbnailRect).union(captionRect)
     }
 
-    private var thumbnailRect: CGRect {
+    /// The thumbnail in the fragment's coordinates, which a tap opens.
+    var thumbnailRect: CGRect {
         let textBottom = textLineFragments.last?.typographicBounds.maxY ?? 0
         return CGRect(origin: CGPoint(x: 0, y: textBottom + EditorMetrics.thumbnailGap), size: EditorMetrics.thumbnail)
     }

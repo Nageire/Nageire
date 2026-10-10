@@ -531,4 +531,15 @@ struct NoteOutboxTests {
         #expect(outbox.pending.map(\.contents) == ["---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\n![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)\n"])
         #expect(outbox.pending.map(\.repositoryPath) == ["\(folder).md"])
     }
+
+    @Test func aFileAnotherDeviceSentThatNoLineLinksIsRemovedFromGitHubWhenItsNoteIsSent() async throws {
+        let outbox = outbox()
+        outbox.listedAttachments = { [folder] in $0.folderPath == folder ? ["\(folder)/other.jpeg"] : [] }
+        let entry = NoteEntry(path: "\(folder).md", contents: "---\n---\n\n![other.jpeg](2026-10-03T135812Z-a1b2/other.jpeg)\n", isPending: false)
+
+        try outbox.edit(entry, text: "No photo")
+        await outbox.send()
+
+        #expect(api.deleteFileAttempts.map(\.path) == ["\(folder)/other.jpeg"])
+    }
 }

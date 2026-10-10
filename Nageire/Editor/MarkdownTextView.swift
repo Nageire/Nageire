@@ -20,6 +20,8 @@ struct MarkdownTextView {
     var header: AnyView?
     /// The file an image line links to, for its thumbnail. Nil while the device does not have the file.
     var attachment: (String) -> Data? = { _ in nil }
+    /// Changes when files the editor had no thumbnail for may have arrived.
+    var attachmentArrivals = 0
     /// The accessory bar has the photo library's button, which reaches the library through `requests`.
     var canAddPhotos = false
     /// The accessory bar has the camera's button as well.
@@ -56,6 +58,8 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
     weak var requests: EditorRequests?
     /// The files of a paste or a drop being loaded, in the order they came.
     fileprivate var incoming: [Task<IncomingFile?, Never>] = []
+    /// The arrivals the image lines were last styled for.
+    private var attachmentArrivals = 0
     fileprivate var isDeliveringIncoming = false
     /// The start of the paragraph that held the caret when the selection last moved, to restyle when it leaves.
     private var lastCaretParagraphStart: Int?
@@ -167,6 +171,50 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         return (NSRange(location: start + fragment.box.location, length: fragment.box.length), fragment.done)
     }
 
+    /// The link of the thumbnail under a point in the text container's coordinates.
+    func thumbnailLink(at point: CGPoint) -> String? {
+        guard let layoutManager = view?.textLayoutManager,
+              let fragment = layoutManager.textLayoutFragment(for: point) as? ThumbnailLayoutFragment,
+              fragment.thumbnailRect.offsetBy(dx: fragment.layoutFragmentFrame.minX, dy: fragment.layoutFragmentFrame.minY).contains(point)
+        else { return nil }
+        return fragment.link
+    }
+
+    /// The address of the line under a point when the line is one link to a file, as the app writes for a file that is not an image.
+    func fileLink(at point: CGPoint) -> String? {
+        guard let layoutManager = view?.textLayoutManager, let fragment = layoutManager.textLayoutFragment(for: point),
+              fragment.layoutFragmentFrame.contains(point),
+              let paragraph = (fragment.textElement as? NSTextParagraph)?.attributedString.string,
+              case let line = paragraph.trimmingCharacters(in: .whitespacesAndNewlines),
+              let address = MarkdownLine(line).soleLinkAddress(in: line), NoteEntry.isAttachmentLink(NoteEntry.decoded(String(address)))
+        else { return nil }
+        return String(address)
+    }
+
+    /// Opens what the screen shows of a file.
+    func open(_ link: String) {
+        requests?.open?(link)
+    }
+
+    /// Styles the image lines without a thumbnail again once files have arrived, so that a file that arrived is asked for and shown.
+    func noteArrivals(_ arrivals: Int) {
+        guard arrivals != attachmentArrivals else { return }
+        attachmentArrivals = arrivals
+        restyleImageLines { !self.thumbnails.has($0) }
+    }
+
+    /// What a tap at the point does instead of placing the caret: toggles a task's box, opens a thumbnail, or opens the
+    /// file a line links to where `opensFileLink`. Nil where the tap is the text view's.
+    func decorationTap(at point: CGPoint, opensFileLink: Bool) -> (() -> Void)? {
+        if box(at: point) != nil {
+            return { self.toggleBox(at: point) }
+        }
+        if let link = thumbnailLink(at: point) ?? (opensFileLink ? fileLink(at: point) : nil) {
+            return { self.open(link) }
+        }
+        return nil
+    }
+
     /// Toggles the box under a point, an edit like any other, and says whether there was one.
     @discardableResult
     func toggleBox(at point: CGPoint) -> Bool {
@@ -190,7 +238,7 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         case let .checkbox(done, box):
             return CheckboxLayoutFragment(textElement: textElement, done: done, box: box, capHeight: styler.fonts.body.capHeight, palette: palette)
         case let .thumbnail(file, link):
-            return ThumbnailLayoutFragment(textElement: textElement, file: file, thumbnail: thumbnails.thumbnail(for: link), font: styler.fonts.caption, palette: palette, hairline: pixelLength)
+            return ThumbnailLayoutFragment(textElement: textElement, file: file, link: link, thumbnail: thumbnails.thumbnail(for: link), font: styler.fonts.caption, palette: palette, hairline: pixelLength)
         }
     }
 
@@ -227,6 +275,8 @@ extension MarkdownTextView: UIViewRepresentable {
         coordinator.requests = requests
         coordinator.serif = serif
         coordinator.thumbnails.attachment = attachment
+        // The files that arrived before this note was opened are asked for as its lines are first laid out.
+        coordinator.noteArrivals(attachmentArrivals)
         coordinator.palette = DecorationPalette(accent: view.tintColor)
         coordinator.scale = view.traitCollection.displayScale
         coordinator.apply(EditorFonts(serif: serif, traits: view.traitCollection), to: view)
@@ -269,6 +319,7 @@ extension MarkdownTextView: UIViewRepresentable {
         coordinator.text = $text
         coordinator.isFocused = isFocused
         coordinator.thumbnails.attachment = attachment
+        coordinator.noteArrivals(attachmentArrivals)
         if let header {
             view.header?.rootView = header
             view.headerNeedsLayout = true
@@ -394,16 +445,23 @@ final class NoteTextView: UITextView {
     /// A tap on a box is the box's, not the text's: it toggles the task and neither moves the caret nor raises
     /// the keyboard. A drag that starts on a box still scrolls.
     override func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-        let overBox = coordinator?.box(at: containerPoint(recognizer.location(in: self))) != nil
-        if recognizer === boxTap {
-            return overBox
-        }
         let isTextTouch = recognizer is UITapGestureRecognizer || recognizer is UILongPressGestureRecognizer
-        return !(overBox && isTextTouch) && super.gestureRecognizerShouldBegin(recognizer)
+        // A pan or a scroll is the view's wherever it starts, so only a touch asks what is under it.
+        guard isTextTouch else { return super.gestureRecognizerShouldBegin(recognizer) }
+        let overDecoration = decorationTap(at: containerPoint(recognizer.location(in: self))) != nil
+        if recognizer === boxTap {
+            return overDecoration
+        }
+        return !overDecoration && super.gestureRecognizerShouldBegin(recognizer)
+    }
+
+    /// While the note is read rather than edited, a tap on a line that links a file opens it; while it is edited, the tap places the caret.
+    private func decorationTap(at point: CGPoint) -> (() -> Void)? {
+        coordinator?.decorationTap(at: point, opensFileLink: !isFirstResponder)
     }
 
     @objc private func tapBox(_ recognizer: UITapGestureRecognizer) {
-        coordinator?.toggleBox(at: containerPoint(recognizer.location(in: self)))
+        decorationTap(at: containerPoint(recognizer.location(in: self)))?()
     }
 
     private func containerPoint(_ point: CGPoint) -> CGPoint {
@@ -473,6 +531,8 @@ extension MarkdownTextView: NSViewRepresentable {
         coordinator.requests = requests
         coordinator.serif = serif
         coordinator.thumbnails.attachment = attachment
+        // The files that arrived before this note was opened are asked for as its lines are first laid out.
+        coordinator.noteArrivals(attachmentArrivals)
         coordinator.palette = DecorationPalette(accent: .controlAccentColor)
         // The view has no window yet; the main screen's scale is the one it will almost always get.
         coordinator.scale = NSScreen.main?.backingScaleFactor ?? 2
@@ -492,6 +552,7 @@ extension MarkdownTextView: NSViewRepresentable {
         coordinator.text = $text
         coordinator.isFocused = isFocused
         coordinator.thumbnails.attachment = attachment
+        coordinator.noteArrivals(attachmentArrivals)
         if let header {
             view.header?.rootView = header
             view.headerNeedsLayout = true
@@ -614,7 +675,9 @@ final class NoteTextView: NSTextView {
         if event.clickCount > 1, coordinator?.box(at: container) != nil {
             return
         }
-        if coordinator?.toggleBox(at: container) == true {
+        // A line that links a file opens with a Command-click, since a click there places the caret.
+        if let tap = coordinator?.decorationTap(at: container, opensFileLink: event.modifierFlags.contains(.command)) {
+            tap()
             return
         }
         super.mouseDown(with: event)

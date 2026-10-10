@@ -51,8 +51,10 @@ protocol NoteStore {
     /// Deletes a waiting file that GitHub never got.
     func removeWaitingAttachment(path: String) throws
 
-    /// The device's copy of the files GitHub holds.
+    /// The device's copy of the notes GitHub holds.
     func library() throws -> [StoredFile]
+    /// The repository paths of the notes' files the device has fetched or sent, without reading them.
+    func libraryAttachments() throws -> [String]
     func saveToLibrary(_ file: StoredFile) throws
     func removeFromLibrary(path: String) throws
     func removeLibrary() throws
@@ -169,12 +171,20 @@ struct FileNoteStore: NoteStore {
         try files(in: libraryDirectory)
     }
 
+    func libraryAttachments() throws -> [String] {
+        try filePaths(in: libraryDirectory) { $0.pathExtension != "md" }
+    }
+
     func saveToLibrary(_ file: StoredFile) throws {
         try write(file.contents, to: libraryDirectory.appending(path: file.path))
     }
 
     func removeFromLibrary(path: String) throws {
-        try FileManager.default.removeItem(at: libraryDirectory.appending(path: path))
+        do {
+            try FileManager.default.removeItem(at: libraryDirectory.appending(path: path))
+        } catch CocoaError.fileNoSuchFile {
+            // Already gone, as a file of another device that was listed and never fetched.
+        }
     }
 
     func removeLibrary() throws {

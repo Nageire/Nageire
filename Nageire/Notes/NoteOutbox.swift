@@ -69,6 +69,11 @@ final class NoteOutbox {
         Note(body: "", createdAt: now(), timeZone: timeZone(), suffix: suffix()).fileName
     }
 
+    /// The repository paths of the files GitHub was last listed with in a note's folder that the copy of the note GitHub
+    /// holds links, which the device may not have fetched. A listed file the copy does not link may be one whose note has
+    /// not arrived yet from the device that sent it, and is left alone.
+    var listedAttachments: (NoteEntry) -> [String] = { _ in [] }
+
     /// The repository path of the note the draft becomes, once it has a name. Its files wait with the draft rather than being stranded.
     var draftPath: String?
 
@@ -154,9 +159,11 @@ final class NoteOutbox {
                     held.insert(entry.path)
                     continue
                 }
+                // Read before the note goes, while the copy is still the text GitHub had before it.
+                let listed = listedAttachments(entry)
                 try await sendAttachments(files, to: destination)
                 try await sendNote()
-                try await removeAttachments(of: entry, except: linked, in: destination)
+                try await removeAttachments(of: entry, except: linked, listed: listed, in: destination)
             } catch let GitHubAPIError.unexpectedStatus(status) where !Self.transientStatuses.contains(status) {
                 wasRefused = true
                 return
@@ -227,18 +234,19 @@ final class NoteOutbox {
     }
 
     /// Removes the files of the note's folder outside `linked`: a waiting one from the device, a sent one from GitHub too.
-    private func removeAttachments(of entry: NoteEntry, except linked: Set<String>, in destination: Repository) async throws {
+    private func removeAttachments(of entry: NoteEntry, except linked: Set<String>, listed: [String], in destination: Repository) async throws {
         // A change recorded during the send may link a file the sent text does not; it is sent next and removes what it leaves.
         guard try pendingNote(at: entry.path) == nil, try !store.changes().contains(where: { $0.path == entry.path }) else { return }
         let folder = String(entry.folderPath)
         let waiting = Set(try store.waitingAttachments())
-        for name in try store.attachmentNames(inFolder: folder) {
-            let path = "\(folder)/\(name)"
+        let onDevice = Set(try store.attachmentNames(inFolder: folder).map { "\(folder)/\($0)" })
+        // The files other devices sent are listed, not fetched, and go from GitHub the same way.
+        for path in onDevice.union(listed).sorted() {
             guard !linked.contains(path), !attachedBeforeTheirEdit.contains(path) else { continue }
             if waiting.contains(path) {
                 try store.removeWaitingAttachment(path: path)
             } else {
-                try await api.deleteFile(at: path, in: destination, message: "Delete \(name)")
+                try await api.deleteFile(at: path, in: destination, message: "Delete \(path[fileNameStart(of: path)...])")
                 try store.removeFromLibrary(path: path)
             }
             waitingAttachments.removeAll { $0 == path }
