@@ -22,7 +22,7 @@ struct NoteView: View {
             text: $text, focusesOnAppear: false, isNoteColumn: true,
             header: AnyView(NoteHeader(note: note).padding(.bottom, Spacing.headerGap)),
             attachment: { model.attachment(of: note, linked: $0) },
-            attachPhoto: { try await model.attachPhoto($0, named: $1, to: note) }
+            attachFile: { try await model.attachFile($0, named: $1, to: note) }
         )
             .background(.paper)
             .onChange(of: text) { model.editNote(note, text: text) }

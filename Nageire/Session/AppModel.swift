@@ -209,7 +209,7 @@ final class AppModel {
     /// Reduces the photo to the size Settings gives, keeps it beside the note, and returns the line that links it.
     /// A nil note is the draft, which is given its note's name with its first file.
     /// Throws `CancellationError` when the draft was saved or emptied while the photo was being reduced: its line has no draft to go into.
-    func attachPhoto(_ contents: Data, named name: String?, to note: NoteEntry?) async throws -> String {
+    func attachFile(_ contents: Data, named name: String?, to note: NoteEntry?) async throws -> String {
         if note == nil, draftNoteName == nil {
             draftNoteName = outbox.nameNewNote()
         }

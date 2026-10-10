@@ -448,7 +448,7 @@ struct AppModelTests {
 
     @Test func theDraftsFirstPhotoGivesItTheNoteItBecomesWhichSurvivesARelaunch() async throws {
         let model = model()
-        let line = try await model.attachPhoto(pngData(width: 300, height: 200), named: "IMG_0421.HEIC", to: nil)
+        let line = try await model.attachFile(pngData(width: 300, height: 200), named: "IMG_0421.HEIC", to: nil)
         let draft = try #require(model.draftEntry)
 
         #expect(line == "![IMG_0421.jpeg](\(draft.folderName)/IMG_0421.jpeg)")
@@ -472,7 +472,7 @@ struct AppModelTests {
         model.photoSize = .large
         let note = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
 
-        _ = try await model.attachPhoto(pngData(width: 5000, height: 1000), named: "wide.png", to: note)
+        _ = try await model.attachFile(pngData(width: 5000, height: 1000), named: "wide.png", to: note)
 
         let photo = try #require(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/wide.jpeg"))
         #expect(try pixelSize(of: photo).width == 4096)
@@ -481,7 +481,7 @@ struct AppModelTests {
 
     @Test func anEmptiedDraftLetsGoOfTheNoteItWasToBecomeAndItsFiles() async throws {
         let model = model()
-        _ = try await model.attachPhoto(pngData(width: 300, height: 200), named: "IMG.png", to: nil)
+        _ = try await model.attachFile(pngData(width: 300, height: 200), named: "IMG.png", to: nil)
         let draft = try #require(model.draftEntry)
 
         model.discardDraftFiles()

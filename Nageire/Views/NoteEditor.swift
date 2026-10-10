@@ -15,7 +15,7 @@ struct NoteEditor: View {
     /// The file an image line links to, for its thumbnail. Nil while the device does not have the file.
     var attachment: (String) -> Data? = { _ in nil }
     /// Keeps a photo, from its bytes and its own name if it has one, and returns the line that links it. Nil where no photo is added.
-    var attachPhoto: ((Data, String?) async throws -> String)?
+    var attachFile: ((Data, String?) async throws -> String)?
 
     @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     /// The cursor goes into the editor when it appears, and on each request after that.
@@ -32,11 +32,11 @@ struct NoteEditor: View {
         MarkdownTextView(
             text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused,
             isNoteColumn: isNoteColumn, header: header, attachment: attachment,
-            canAddPhotos: attachPhoto != nil, canTakePhoto: attachPhoto != nil && CameraPicker.isAvailable
+            canAddPhotos: attachFile != nil, canTakePhoto: attachFile != nil && CameraPicker.isAvailable
         )
         .focusedSceneValue(\.editorRequests, isFocused ? requests : nil)
         .onAppear {
-            if attachPhoto != nil {
+            if attachFile != nil {
                 requests.addPhotos = { isPickingPhotos = true }
                 requests.takePhoto = CameraPicker.isAvailable ? { isTakingPhoto = true } : nil
             }
@@ -80,12 +80,12 @@ struct NoteEditor: View {
     /// Keeps the photos in the order they were picked and puts their lines in at the caret together, as one edit.
     /// Each is read only when the one before is kept, so that ten photos are never in memory at once.
     private func attach(_ photos: [() async throws -> (contents: Data, name: String?)]) async {
-        guard let attachPhoto else { return }
+        guard let attachFile else { return }
         var lines: [String] = []
         for photo in photos {
             do {
                 let (contents, name) = try await photo()
-                lines.append(try await attachPhoto(contents, name))
+                lines.append(try await attachFile(contents, name))
             } catch is CancellationError {
                 // The draft was saved or emptied meanwhile; the photo has no line to go into.
             } catch {
