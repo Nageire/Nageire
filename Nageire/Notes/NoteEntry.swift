@@ -67,7 +67,8 @@ struct NoteEntry: Identifiable, Hashable {
                 }
                 continue
             }
-            if let link = fileLink(in: line, markdown), link.hasPrefix(folder + "/"), isAttachmentLink(link) {
+            // Only a link into the note's own folder counts as its file: a link to another note is text like any other.
+            if let address = markdown.soleLinkAddress(in: line), case let link = decoded(String(address)), link.hasPrefix(folder + "/"), isAttachmentLink(link) {
                 attachments += 1
                 firstFile = firstFile ?? String(link[fileNameStart(of: link)...])
                 continue
@@ -90,14 +91,6 @@ struct NoteEntry: Identifiable, Hashable {
         return (title ?? firstFile ?? "", hasHeading, excerpt.joined(separator: "\n"), attachments)
     }
 
-    /// The address of a line that is one link and nothing else, as the app writes for a file that is not an image.
-    /// Only a link into the note's own folder counts as its file: a link to another note is text like any other.
-    private static func fileLink(in line: String, _ markdown: MarkdownLine) -> String? {
-        guard markdown.kind == .text, line.hasPrefix("["), line.hasSuffix(")") else { return nil }
-        let addresses = markdown.spans.filter { $0.role == .linkAddress }
-        guard addresses.count == 1, let address = addresses.first, address.range.upperBound == line.index(before: line.endIndex) else { return nil }
-        return decoded(String(line[address.range]))
-    }
     /// A Japanese sentence mark, or a period that is followed by a space or ends the line, so that a decimal or an address does not end a sentence.
     private static let sentenceEnd = /[。！？!?]|\.(?=\s|$)/
     /// The line without its Markdown marks: the block marker, emphasis and code marks, and a link's marks and address.
