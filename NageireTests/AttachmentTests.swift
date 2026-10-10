@@ -29,4 +29,18 @@ struct AttachmentTests {
     @Test func theLineLinksTheFileInTheFolderBesideTheNote() {
         #expect(Attachment.line(name: "IMG_0421.jpeg", folder: "2026-10-03T135812Z-a1b2") == "![IMG_0421.jpeg](2026-10-03T135812Z-a1b2/IMG_0421.jpeg)")
     }
+
+    @Test func anImageIsLinkedAsAnImageAndAnyOtherFileAsALink() {
+        #expect(Attachment.line(name: "IMG.jpeg", folder: "f") == "![IMG.jpeg](f/IMG.jpeg)")
+        #expect(Attachment.line(name: "scan.pdf", folder: "f") == "[scan.pdf](f/scan.pdf)")
+    }
+
+    @Test func aFileOver25MBIsAskedAboutAndOneOver100MBIsRefusedWhileAPhotoIsReducedAtAnySize() {
+        #expect(Attachment.check(size: 25_000_000, name: "scan.pdf") == .fine)
+        #expect(Attachment.check(size: 25_000_001, name: "scan.pdf") == .large)
+        #expect(Attachment.check(size: 100_000_000, name: "scan.pdf") == .large)
+        #expect(Attachment.check(size: 100_000_001, name: "scan.pdf") == .tooLarge)
+        #expect(Attachment.check(size: 150_000_000, name: "IMG_0421.HEIC") == .fine)
+        #expect(Attachment.check(size: 150_000_000, name: "loop.gif") == .tooLarge)
+    }
 }

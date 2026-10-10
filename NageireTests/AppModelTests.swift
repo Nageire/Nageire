@@ -491,4 +491,18 @@ struct AppModelTests {
         #expect(model.outbox.draftPath == nil)
         #expect(model.attachment(of: draft, linked: "\(draft.folderName)/IMG.jpeg") == nil)
     }
+
+    @Test func aFileThatIsNotAPhotoIsKeptAsItIsAndLinked() async throws {
+        let model = model()
+        let note = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+        let gif = pngData(width: 4000, height: 10)
+
+        let pdfLine = try await model.attachFile(Data("%PDF".utf8), named: "scan.pdf", to: note)
+        let gifLine = try await model.attachFile(gif, named: "loop.gif", to: note)
+
+        #expect(pdfLine == "[scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf)")
+        #expect(gifLine == "![loop.gif](2026-10-03T135812Z-a1b2/loop.gif)")
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/scan.pdf") == Data("%PDF".utf8))
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/loop.gif") == gif)
+    }
 }

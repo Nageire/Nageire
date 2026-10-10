@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ is %@. It will take a while to send and will make the repository larger." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ は %2$@ あります。送信に時間がかかり、リポジトリも大きくなります。"
+          }
+        }
+      }
+    },
     "%lld attachments" : {
       "localizations" : {
         "ja" : {
@@ -27,6 +37,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "アカウント"
+          }
+        }
+      }
+    },
+    "Add" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加"
+          }
+        }
+      }
+    },
+    "Add Files" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを追加"
+          }
+        }
+      }
+    },
+    "Add Files…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを追加…"
           }
         }
       }
@@ -281,6 +321,16 @@
         }
       }
     },
+    "File too large" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルが大きすぎます"
+          }
+        }
+      }
+    },
     "Format" : {
       "localizations" : {
         "ja" : {
@@ -293,6 +343,16 @@
     },
     "GitHub" : {
 
+    },
+    "GitHub takes files of up to %@. %@ is %@." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub に送れるのは %1$@ までです。%2$@ は %3$@ あります。"
+          }
+        }
+      }
     },
     "GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on." : {
       "localizations" : {
@@ -370,6 +430,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "大"
+          }
+        }
+      }
+    },
+    "Large file" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大きなファイルです"
           }
         }
       }
@@ -690,6 +760,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "コードの有効期限が切れました。最初からやり直してください。"
+          }
+        }
+      }
+    },
+    "The file could not be added" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを追加できませんでした"
           }
         }
       }

@@ -71,6 +71,9 @@ struct NoteCommands: Commands {
             Button("Add Photos…") { editorRequests?.addPhotos?() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
                 .disabled(editorRequests?.addPhotos == nil)
+            Button("Add Files…") { editorRequests?.addFiles?() }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .disabled(editorRequests?.addFiles == nil)
             Divider()
             Group {
                 Button("Bold") { editorRequests?.request(.bold) }

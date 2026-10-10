@@ -16,7 +16,7 @@ struct NoteEntry: Identifiable, Hashable {
     let hasHeading: Bool
     /// The text after the title, with the Markdown marks taken out, one line per line of the note.
     let excerpt: String
-    /// The files the note links to beside itself, as `![name](<folder>/name)` lines.
+    /// The files the note links to beside itself, as `![name](<folder>/name)` lines, or `[name](<folder>/name)` for a file that is not an image.
     let attachmentCount: Int
 
     var id: String { path }
@@ -24,8 +24,12 @@ struct NoteEntry: Identifiable, Hashable {
     /// The directory the note is in, `notes/YYYY/MM/`, which its image lines link from.
     var directory: Substring { path[..<fileNameStart(of: path)] }
     /// The folder beside the note, where its files are: the note's path without `.md`.
-    var folderPath: Substring { path.hasSuffix(".md") ? path.dropLast(3) : Substring(path) }
+    var folderPath: Substring { Self.folderPath(of: path) }
     var folderName: Substring { folderPath[fileNameStart(of: path)...] }
+
+    private static func folderPath(of path: String) -> Substring {
+        path.hasSuffix(".md") ? path.dropLast(3) : Substring(path)
+    }
 
     init(path: String, contents: String, isPending: Bool) {
         self.path = path
@@ -37,7 +41,7 @@ struct NoteEntry: Identifiable, Hashable {
         // The app's own file names still carry the time; any other file is listed without one.
         createdAt = Self.date(of: "created", in: frontMatter) ?? Note.timeOfWriting(inFileName: path[fileNameStart(of: path)...])
         updatedAt = Self.date(of: "updated", in: frontMatter)
-        (displayTitle, hasHeading, excerpt, attachmentCount) = Self.summary(of: body)
+        (displayTitle, hasHeading, excerpt, attachmentCount) = Self.summary(of: body, folder: Self.folderPath(of: path)[fileNameStart(of: path)...])
     }
 
     /// The longest a title cut from a first line that is not a heading can be.
@@ -47,7 +51,7 @@ struct NoteEntry: Identifiable, Hashable {
     /// the end of its first sentence or at `titleLength` characters, and the rest of the line opens
     /// the excerpt. A note has no title field, so its first words serve, and a person who wants a
     /// real title writes a heading. A note that is an image and nothing else is called by the file's name.
-    private static func summary(of body: String) -> (title: String, hasHeading: Bool, excerpt: String, attachments: Int) {
+    private static func summary(of body: String, folder: Substring) -> (title: String, hasHeading: Bool, excerpt: String, attachments: Int) {
         var title: String?
         var hasHeading = false
         var excerpt: [String] = []
@@ -55,12 +59,17 @@ struct NoteEntry: Identifiable, Hashable {
         var firstFile: String?
         for line in body.split(separator: "\n").map({ $0.trimmingCharacters(in: .whitespaces) }) {
             let markdown = MarkdownLine(line)
-            // An image line is nothing to read, since its name is not text.
+            // An image line is nothing to read, since its name is not text, and neither is a line that links a file alone.
             if line.hasPrefix("![") {
                 if case let .image(file, path) = markdown.kind, isAttachmentLink(decoded(path)) {
                     attachments += 1
                     firstFile = firstFile ?? file
                 }
+                continue
+            }
+            if let link = fileLink(in: line, markdown), link.hasPrefix(folder + "/"), isAttachmentLink(link) {
+                attachments += 1
+                firstFile = firstFile ?? String(link[fileNameStart(of: link)...])
                 continue
             }
             let text = plainText(of: markdown, in: line)
@@ -81,6 +90,14 @@ struct NoteEntry: Identifiable, Hashable {
         return (title ?? firstFile ?? "", hasHeading, excerpt.joined(separator: "\n"), attachments)
     }
 
+    /// The address of a line that is one link and nothing else, as the app writes for a file that is not an image.
+    /// Only a link into the note's own folder counts as its file: a link to another note is text like any other.
+    private static func fileLink(in line: String, _ markdown: MarkdownLine) -> String? {
+        guard markdown.kind == .text, line.hasPrefix("["), line.hasSuffix(")") else { return nil }
+        let addresses = markdown.spans.filter { $0.role == .linkAddress }
+        guard addresses.count == 1, let address = addresses.first, address.range.upperBound == line.index(before: line.endIndex) else { return nil }
+        return decoded(String(line[address.range]))
+    }
     /// A Japanese sentence mark, or a period that is followed by a space or ends the line, so that a decimal or an address does not end a sentence.
     private static let sentenceEnd = /[。！？!?]|\.(?=\s|$)/
     /// The line without its Markdown marks: the block marker, emphasis and code marks, and a link's marks and address.

@@ -61,6 +61,14 @@ nonisolated enum Photo {
         return output as Data
     }
 
+    /// Whether a file of the name is reduced as a photo: an image the system reads, and one with no name, as from the
+    /// camera or the clipboard. A GIF would lose its motion and an SVG is not pixels, so both are kept as they are.
+    static func isReduced(_ name: String?) -> Bool {
+        guard let name else { return true }
+        guard let type = Attachment.type(of: name) else { return false }
+        return type.conforms(to: .image) && !type.conforms(to: .gif) && !type.conforms(to: .svg)
+    }
+
     /// The image turned the right way up with its long side at `longSide`, decoded at that size rather than whole.
     static func reducedImage(_ source: CGImageSource, longSide: Int) -> CGImage? {
         let options: [CFString: Any] = [
