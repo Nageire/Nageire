@@ -44,6 +44,12 @@ protocol NoteStore {
     func attachmentNames(inFolder folder: String) throws -> [String]
     /// A file of a note at its repository path, waiting or in the library. Nil when the device does not have it.
     func attachment(at path: String) throws -> Data?
+    /// The repository paths of the files of notes not yet sent to GitHub, in path order.
+    func waitingAttachments() throws -> [String]
+    /// Moves a waiting file into the library, at its repository path.
+    func markAttachmentSent(path: String) throws
+    /// Deletes a waiting file that GitHub never got.
+    func removeWaitingAttachment(path: String) throws
 
     /// The device's copy of the files GitHub holds.
     func library() throws -> [StoredFile]
@@ -78,10 +84,7 @@ struct FileNoteStore: NoteStore {
     }
 
     func markSent(_ note: Note) throws {
-        let destination = libraryDirectory.appending(path: note.repositoryPath)
-        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: destination)
-        try FileManager.default.moveItem(at: outbox.appending(path: note.fileName), to: destination)
+        try moveIntoLibrary(outbox.appending(path: note.fileName), at: note.repositoryPath)
     }
 
     func replacePending(_ note: Note, with replacement: Note) throws {
@@ -149,6 +152,24 @@ struct FileNoteStore: NoteStore {
         return nil
     }
 
+    func waitingAttachments() throws -> [String] {
+        guard let files = FileManager.default.enumerator(at: attachments, includingPropertiesForKeys: [.isRegularFileKey]) else { return [] }
+        let root = attachments.resolvingSymlinksInPath().pathComponents.count
+        return files.compactMap { $0 as? URL }
+            .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
+            .map { $0.resolvingSymlinksInPath().pathComponents.dropFirst(root).joined(separator: "/") }
+            .sorted()
+    }
+
+    func markAttachmentSent(path: String) throws {
+        try moveIntoLibrary(attachments.appending(path: path), at: path)
+    }
+
+    /// Deletes a waiting file that GitHub never got.
+    func removeWaitingAttachment(path: String) throws {
+        try FileManager.default.removeItem(at: attachments.appending(path: path))
+    }
+
     func library() throws -> [StoredFile] {
         try files(in: libraryDirectory)
     }
@@ -172,6 +193,14 @@ struct FileNoteStore: NoteStore {
         return try paths.filter { $0.hasSuffix(".md") }.sorted().map {
             StoredFile(path: $0, contents: try Data(contentsOf: directory.appending(path: $0)))
         }
+    }
+
+    /// Moves the file to its repository path in the library, over what the library holds there.
+    private func moveIntoLibrary(_ file: URL, at path: String) throws {
+        let destination = libraryDirectory.appending(path: path)
+        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: destination)
+        try FileManager.default.moveItem(at: file, to: destination)
     }
 
     private func write(_ contents: Data, to file: URL) throws {

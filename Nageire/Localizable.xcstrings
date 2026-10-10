@@ -511,6 +511,16 @@
         }
       }
     },
+    "Send photos on Wi-Fi only" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真は Wi-Fi 接続時のみ送信"
+          }
+        }
+      }
+    },
     "Sent" : {
       "localizations" : {
         "ja" : {

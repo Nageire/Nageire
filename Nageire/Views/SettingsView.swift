@@ -28,7 +28,8 @@ struct SettingsView: View {
     }
 
     private var form: some View {
-        Form {
+        @Bindable var model = model
+        return Form {
             Group {
                 Section("Account") {
                     Button {
@@ -63,6 +64,7 @@ struct SettingsView: View {
                             Text(verbatim: "—")
                         }
                     }
+                    Toggle("Send photos on Wi-Fi only", isOn: $model.sendsPhotosOnWiFiOnly)
                 }
             }
             // The macOS settings window can be opened from the sign-in screen, where only the look applies.

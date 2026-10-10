@@ -148,4 +148,20 @@ struct FileNoteStoreTests {
         #expect(try store.attachment(at: "\(folder)/missing.jpg") == nil)
         #expect(try store.library().isEmpty)
     }
+
+    @Test func aSentFileMovesFromTheWaitingOnesIntoTheLibraryAndARemovedOneIsGone() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let folder = "notes/2026/10/2026-10-03T135812Z-a1b2"
+        try store.addAttachment(StoredFile(path: "\(folder)/sent.jpg", contents: Data("s".utf8)))
+        try store.addAttachment(StoredFile(path: "\(folder)/dropped.jpg", contents: Data("d".utf8)))
+
+        #expect(try store.waitingAttachments() == ["\(folder)/dropped.jpg", "\(folder)/sent.jpg"])
+
+        try store.markAttachmentSent(path: "\(folder)/sent.jpg")
+        try store.removeWaitingAttachment(path: "\(folder)/dropped.jpg")
+
+        #expect(try store.waitingAttachments().isEmpty)
+        #expect(try store.attachmentNames(inFolder: folder) == ["sent.jpg"])
+        #expect(try Data(contentsOf: directory.appending(path: "library/\(folder)/sent.jpg")) == Data("s".utf8))
+    }
 }

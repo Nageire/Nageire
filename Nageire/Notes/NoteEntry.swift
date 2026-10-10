@@ -109,6 +109,18 @@ struct NoteEntry: Identifiable, Hashable {
         return directory + link
     }
 
+    /// The repository paths of the files in the note's folder that any link of the note names: an image line, and also
+    /// an image in a list item or beside a caption, or a plain link. A file outside this set is removed when the note is sent.
+    var linkedAttachments: Set<String> {
+        let folder = folderPath + "/"
+        return Set(body.matches(of: Self.linkAddress).compactMap { match in
+            attachmentPath(linked: String(match.output.1)).flatMap { $0.hasPrefix(folder) ? $0 : nil }
+        })
+    }
+
+    /// The address of a Markdown link or image, up to a space before its title.
+    private static let linkAddress = /\]\(([^)\s]+)/
+
     /// Another tool may have written the name with its spaces encoded. Decoded before the link is judged, so that an encoded `..` is judged as `..`.
     private static func decoded(_ link: String) -> String {
         link.removingPercentEncoding ?? link
