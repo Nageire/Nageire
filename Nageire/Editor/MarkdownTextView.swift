@@ -107,10 +107,15 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
 
     /// Styles the image lines that link the file again, now that their thumbnail is decoded.
     private func restyleImageLines(linking link: String) {
+        restyleImageLines { $0 == link }
+    }
+
+    /// Styles the image lines whose link passes the test again.
+    private func restyleImageLines(where linkPasses: @escaping (String) -> Bool) {
         guard let storage = view?.contentStorage?.textStorage else { return }
         let string = storage.string as NSString
         string.enumerateSubstrings(in: NSRange(location: 0, length: string.length), options: .byParagraphs) { paragraph, _, range, _ in
-            guard let paragraph, paragraph.hasPrefix("!["), case let .image(_, linked) = MarkdownLine(paragraph).kind, linked == link else { return }
+            guard let paragraph, paragraph.hasPrefix("!["), case let .image(_, link) = MarkdownLine(paragraph).kind, linkPasses(link) else { return }
             self.restyle(range, in: storage)
         }
     }

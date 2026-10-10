@@ -132,12 +132,12 @@ struct NoteEntry: Identifiable, Hashable {
     private static let linkAddress = /\]\(([^)\s]+)/
 
     /// Another tool may have written the name with its spaces encoded. Decoded before the link is judged, so that an encoded `..` is judged as `..`.
-    private static func decoded(_ link: String) -> String {
+    static func decoded(_ link: String) -> String {
         link.removingPercentEncoding ?? link
     }
 
     /// A link with a scheme points elsewhere, as does one that starts at the root or climbs out of the directory.
-    private static func isAttachmentLink(_ link: String) -> Bool {
+    static func isAttachmentLink(_ link: String) -> Bool {
         !link.contains("://") && !link.hasPrefix("/") && !link.split(separator: "/").contains("..")
     }
 

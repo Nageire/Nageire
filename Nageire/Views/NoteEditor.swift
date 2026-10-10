@@ -38,6 +38,10 @@ struct NoteEditor: View {
     @State private var isKeepingFiles = false
 
     var body: some View {
+        pickersAndAlerts(editor)
+    }
+
+    private var editor: some View {
         MarkdownTextView(
             text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused,
             isNoteColumn: isNoteColumn, header: header, attachment: attachment,
@@ -56,6 +60,13 @@ struct NoteEditor: View {
             }
         }
         .onChange(of: focusRequest) { focusRequests += 1 }
+    }
+}
+
+extension NoteEditor {
+    /// The pickers, the alerts, and the preview, apart from the body, which the compiler would otherwise check as one expression.
+    fileprivate func pickersAndAlerts(_ content: some View) -> some View {
+        content
         // The photo keeps its own encoding: the app makes the JPEG itself, at the size Settings gives.
         .photosPicker(isPresented: $isPickingPhotos, selection: $pickedPhotos, matching: .images, preferredItemEncoding: .current)
         .onChange(of: pickedPhotos) {

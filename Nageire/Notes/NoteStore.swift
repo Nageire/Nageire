@@ -153,12 +153,7 @@ struct FileNoteStore: NoteStore {
     }
 
     func waitingAttachments() throws -> [String] {
-        guard let files = FileManager.default.enumerator(at: attachments, includingPropertiesForKeys: [.isRegularFileKey]) else { return [] }
-        let root = attachments.resolvingSymlinksInPath().pathComponents.count
-        return files.compactMap { $0 as? URL }
-            .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
-            .map { $0.resolvingSymlinksInPath().pathComponents.dropFirst(root).joined(separator: "/") }
-            .sorted()
+        try filePaths(in: attachments)
     }
 
     func markAttachmentSent(path: String) throws {
@@ -185,6 +180,16 @@ struct FileNoteStore: NoteStore {
     func removeLibrary() throws {
         guard FileManager.default.fileExists(atPath: libraryDirectory.path) else { return }
         try FileManager.default.removeItem(at: libraryDirectory)
+    }
+
+    /// The paths of the files under the directory, relative to it, in path order.
+    private func filePaths(in directory: URL, where include: (URL) -> Bool = { _ in true }) throws -> [String] {
+        guard let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey]) else { return [] }
+        let root = directory.resolvingSymlinksInPath().pathComponents.count
+        return files.compactMap { $0 as? URL }
+            .filter { include($0) && (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
+            .map { $0.resolvingSymlinksInPath().pathComponents.dropFirst(root).joined(separator: "/") }
+            .sorted()
     }
 
     /// The Markdown files under the directory, with their paths relative to it, in path order.
