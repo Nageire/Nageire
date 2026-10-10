@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// A file of a note, kept in the folder beside the note, `notes/YYYY/MM/<timestamp>-<suffix>/<name>`, and linked from an image line.
 nonisolated enum Attachment {
@@ -29,6 +30,11 @@ nonisolated enum Attachment {
     /// The line that links the file from the note, relative to the note's directory, so that GitHub's file view shows the image.
     static func line(name: String, folder: some StringProtocol) -> String {
         "![\(name)](\(folder)/\(name))"
+    }
+
+    /// A file the switch for Wi-Fi holds back: an image, by its name's extension.
+    static func isPhoto(_ path: String) -> Bool {
+        UTType(filenameExtension: (path as NSString).pathExtension)?.conforms(to: .image) == true
     }
 
     /// Replaced by `_`: the characters a path cannot carry on either platform or on GitHub, the brackets and

@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import Observation
 
 @Observable
@@ -33,6 +34,19 @@ final class AppModel {
                 sendChanges()
             }
         }
+    }
+
+    /// Photos, and the notes that link to them, wait for Wi-Fi. Off by default, as the switch in Settings is.
+    var sendsPhotosOnWiFiOnly: Bool {
+        didSet {
+            defaults.set(sendsPhotosOnWiFiOnly, forKey: Keys.sendsPhotosOnWiFiOnly)
+            updatePhotoHold()
+        }
+    }
+    /// The device is on a network that costs by the byte: cellular, or a phone's hotspot. Nil until the network is first known,
+    /// which holds the photos as a metered network does, so that a send at launch does not beat the first answer.
+    var isOnMeteredNetwork: Bool? {
+        didSet { updatePhotoHold() }
     }
 
     private let undoWindow: Duration
@@ -75,6 +89,7 @@ final class AppModel {
 
         isSignedIn = session.hasTokens
         lastSentAt = defaults.object(forKey: Keys.lastSentAt) as? Date
+        sendsPhotosOnWiFiOnly = defaults.bool(forKey: Keys.sendsPhotosOnWiFiOnly)
         if isSignedIn {
             accountLogin = defaults.string(forKey: Keys.accountLogin)
             if let fullName = defaults.string(forKey: Keys.repository) {
@@ -94,6 +109,24 @@ final class AppModel {
         outbox.onChanged = { [weak self, library] in
             library.apply($0)
             self?.recordSend()
+        }
+        updatePhotoHold()
+    }
+
+    private func updatePhotoHold() {
+        let holds = sendsPhotosOnWiFiOnly && isOnMeteredNetwork != false
+        guard holds != outbox.holdsPhotos else { return }
+        outbox.holdsPhotos = holds
+        // The photos let go are sent now, not at the next note.
+        if !holds {
+            Task { await outbox.send() }
+        }
+    }
+
+    /// Follows the network the device is on, for as long as the app runs.
+    func watchNetwork() async {
+        for await path in NWPathMonitor() where path.isExpensive != isOnMeteredNetwork {
+            isOnMeteredNetwork = path.isExpensive
         }
     }
 
@@ -311,6 +344,7 @@ final class AppModel {
         static let lastSentAt = "lastSentAt"
         /// The note body in the serif. The rest of the app stays in the sans.
         static let serifBody = "serifBody"
+        static let sendsPhotosOnWiFiOnly = "sendsPhotosOnWiFiOnly"
     }
 }
 
@@ -331,7 +365,7 @@ extension AppModel {
         let session = GitHubSession(store: KeychainTokenStore(), oauth: oauth)
         let api = GitHubAPIClient(transport: transport, session: session)
         let store = FileNoteStore(directory: .applicationSupportDirectory.appending(path: "Notes"))
-        return AppModel(
+        let model = AppModel(
             configuration: configuration,
             oauth: oauth,
             api: api,
@@ -340,5 +374,7 @@ extension AppModel {
             session: session,
             defaults: .standard
         )
+        Task(name: "network-watch") { await model.watchNetwork() }
+        return model
     }
 }

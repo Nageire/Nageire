@@ -451,6 +451,38 @@ struct NoteOutboxTests {
         #expect(store.files["\(folder)/IMG.jpeg"] == Data("jpeg".utf8))
     }
 
+    @Test func aNoteWhosePhotosAreHeldWaitsWithThemWhileOtherNotesGo() async throws {
+        let outbox = outbox()
+        outbox.holdsPhotos = true
+        try outbox.add(body: "![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)\n![scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf)")
+        try store.addAttachment(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+        try store.addAttachment(StoredFile(path: "\(folder)/scan.pdf", contents: Data("pdf".utf8)))
+        clock.now += 60
+        try outbox.add(body: "Second")
+
+        await outbox.send()
+
+        #expect(api.committedPaths == ["notes/2026/10/2026-10-03T135912Z-9f3c.md"])
+        #expect(outbox.pendingCount == 3)
+
+        outbox.holdsPhotos = false
+        await outbox.send()
+
+        #expect(api.committedPaths.dropFirst() == ["\(folder)/IMG.jpeg", "\(folder)/scan.pdf", "\(folder).md"])
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func aNoteWithoutPhotosIsNotHeld() async throws {
+        let outbox = outbox()
+        outbox.holdsPhotos = true
+        try outbox.add(body: "![scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf)")
+        try store.addAttachment(StoredFile(path: "\(folder)/scan.pdf", contents: Data("pdf".utf8)))
+
+        await outbox.send()
+
+        #expect(outbox.pendingCount == 0)
+    }
+
     @Test func aFileNamedByAListItemACaptionedImageOrAPlainLinkIsKept() async throws {
         let outbox = outbox()
         let entry = NoteEntry(path: "\(folder).md", contents: "---\n---\n\nSent\n", isPending: false)

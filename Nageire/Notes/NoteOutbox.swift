@@ -16,6 +16,9 @@ final class NoteOutbox {
     /// The repository paths of the files of notes that GitHub does not have yet.
     private(set) var waitingAttachments: [String] = []
     var pendingCount: Int { pending.count + changes.count + waitingAttachments.count }
+    /// While true, a note that links a waiting photo waits with its files, and the other notes go past it.
+    /// The switch in Settings is on and the device is off Wi-Fi.
+    var holdsPhotos = false
     /// Called with each note GitHub has taken.
     var onSent: (Note) -> Void = { _ in }
     /// Called with each edit or deletion GitHub has taken.
@@ -91,7 +94,7 @@ final class NoteOutbox {
 
     /// Sends the pending notes oldest first, then the changes, and stops at the first one GitHub does not take; the rest wait for the next call.
     /// A note's files go before it, so that the note on GitHub never links a file that is not there, and the files of its folder
-    /// that it no longer links go after it.
+    /// that it no longer links go after it. A note whose photos are held waits with them, and the others go past it.
     func send() async {
         // The Contents API rejects a commit made while another one to the same branch is in
         // flight, so there is one pass at a time. The pass reads the store again before each
@@ -102,14 +105,15 @@ final class NoteOutbox {
             isSending = false
             refreshPending()
         }
+        var held: Set<String> = []
         while let destination {
             do {
                 let entry: NoteEntry
                 let sendNote: () async throws -> Void
-                if let note = try store.pending().first {
+                if let note = try store.pending().first(where: { !held.contains($0.repositoryPath) }) {
                     entry = NoteEntry(path: note.repositoryPath, contents: note.contents, isPending: true)
                     sendNote = { try await self.send(note, to: destination) }
-                } else if let change = try store.changes().first {
+                } else if let change = try store.changes().first(where: { !held.contains($0.path) }) {
                     entry = Self.entry(after: change)
                     sendNote = { try await self.send(change, to: destination) }
                 } else {
@@ -118,6 +122,10 @@ final class NoteOutbox {
                 }
                 let linked = entry.linkedAttachments
                 let files = try store.waitingAttachments().filter(linked.contains)
+                if holdsPhotos, files.contains(where: Attachment.isPhoto) {
+                    held.insert(entry.path)
+                    continue
+                }
                 try await sendAttachments(files, to: destination)
                 try await sendNote()
                 try await removeAttachments(of: entry, except: linked, in: destination)

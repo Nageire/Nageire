@@ -411,4 +411,38 @@ struct AppModelTests {
         #expect(model.attachment(of: note, linked: "https://example.com/IMG_0421.jpeg") == nil)
         #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/other.jpeg") == nil)
     }
+
+    @Test func withTheSwitchOnPhotosWaitOffWiFiAndGoWhenWiFiReturns() async throws {
+        let model = model()
+        try model.completeSignIn(with: .sample)
+        model.select(Repository(owner: "octocat", name: "notes"))
+        await outboxToDrain(of: model)
+        model.isOnMeteredNetwork = true
+        model.sendsPhotosOnWiFiOnly = true
+        try model.saveNote(body: "Photo")
+        let note = try #require(model.outbox.pending.first)
+        let entry = NoteEntry(path: note.repositoryPath, contents: note.contents, isPending: true)
+        try model.outbox.edit(entry, text: "Photo\n\n" + model.outbox.attach(Data("jpeg".utf8), named: "IMG.jpeg", to: entry))
+        await model.outbox.send()
+
+        #expect(model.outbox.pendingCount == 2)
+        #expect(self.model().sendsPhotosOnWiFiOnly)
+
+        model.isOnMeteredNetwork = false
+        await outboxToDrain(of: model)
+
+        #expect(api.committedPaths.suffix(2) == ["\(entry.folderPath)/IMG.jpeg", entry.path])
+        #expect(model.outbox.pendingCount == 0)
+    }
+
+    @Test func withTheSwitchOnPhotosWaitUntilTheNetworkIsFirstKnown() {
+        let model = model()
+        model.sendsPhotosOnWiFiOnly = true
+
+        #expect(model.outbox.holdsPhotos)
+
+        model.isOnMeteredNetwork = false
+
+        #expect(!model.outbox.holdsPhotos)
+    }
 }
