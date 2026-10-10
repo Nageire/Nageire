@@ -774,6 +774,16 @@
         }
       }
     },
+    "The file could not be opened" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを開けませんでした"
+          }
+        }
+      }
+    },
     "The note could not be deleted" : {
       "localizations" : {
         "ja" : {

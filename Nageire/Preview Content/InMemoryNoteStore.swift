@@ -70,6 +70,7 @@ final class InMemoryNoteStore: NoteStore {
 
     /// The notes among the files, as `FileNoteStore` lists them; the library holds a note's attachments beside it.
     func library() throws -> [StoredFile] { files.filter { $0.key.hasSuffix(".md") }.map { StoredFile(path: $0.key, contents: $0.value) } }
+    func libraryAttachments() throws -> [String] { files.keys.filter { !$0.hasSuffix(".md") }.sorted() }
     func saveToLibrary(_ file: StoredFile) throws { files[file.path] = file.contents }
     func removeFromLibrary(path: String) throws { files[path] = nil }
     func removeLibrary() throws { files = [:] }

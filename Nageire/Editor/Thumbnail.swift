@@ -46,8 +46,13 @@ final class ThumbnailCache {
     /// The screen's scale, which the thumbnails are decoded for.
     var scale: CGFloat = 1
 
+    /// Whether the thumbnail of the link is decoded.
+    func has(_ link: String) -> Bool {
+        thumbnails[link] != nil
+    }
+
     /// The thumbnail of the file a link names once it is decoded, and nil before that, or for good while the device does not have the file.
-    /// A file that arrives later is asked for again at the next layout of its line; nothing tells the cache of it yet.
+    /// A file that arrives later is asked for again at the next layout of its line, which the editor brings about when files arrive.
     func thumbnail(for link: String) -> Thumbnail? {
         if let thumbnail = thumbnails[link] {
             return thumbnail

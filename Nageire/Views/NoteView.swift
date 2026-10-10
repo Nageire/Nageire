@@ -22,8 +22,11 @@ struct NoteView: View {
             text: $text, focusesOnAppear: false, isNoteColumn: true,
             header: AnyView(NoteHeader(note: note).padding(.bottom, Spacing.headerGap)),
             attachment: { model.attachment(of: note, linked: $0) },
-            attachFile: { try await model.attachFile($0, named: $1, to: note) }
+            attachFile: { try await model.attachFile($0, named: $1, to: note) },
+            attachmentArrivals: model.attachmentArrivals
         )
+            // Again after each refresh, which may list files the last one did not.
+            .task(id: FetchKey(note: note.id, listings: model.library.listings)) { await model.fetchAttachments(of: note) }
             .background(.paper)
             .onChange(of: text) { model.editNote(note, text: text) }
             // Closing the note, or opening another in its place, is one of the moments the edits go to GitHub.
@@ -57,6 +60,12 @@ struct NoteView: View {
         guard !note.isPending, let repository = model.repository else { return nil }
         return URL(string: "https://github.com/\(repository.fullName)/blob/HEAD/")?.appending(path: note.path)
     }
+}
+
+/// What the fetch of an open note's files runs again for: another note, or another listing of the files.
+private struct FetchKey: Hashable {
+    let note: String
+    let listings: Int
 }
 
 #Preview {

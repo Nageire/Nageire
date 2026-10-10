@@ -1,4 +1,5 @@
 import PhotosUI
+import QuickLook
 import SwiftUI
 
 /// The editor, shared by writing a new note and editing one. The button that saves a new note belongs to the sheet around it.
@@ -16,6 +17,8 @@ struct NoteEditor: View {
     var attachment: (String) -> Data? = { _ in nil }
     /// Keeps a file, from its bytes and its own name if it has one, and returns the line that links it. Nil where no file is added.
     var attachFile: ((Data, String?) async throws -> String)?
+    /// Changes when files of other devices arrive, for the thumbnails that had none.
+    var attachmentArrivals = 0
 
     @AppStorage(AppModel.Keys.serifBody) private var serifBody = false
     /// The cursor goes into the editor when it appears, and on each request after that.
@@ -36,15 +39,23 @@ struct NoteEditor: View {
     /// The files waiting to be kept, taken in order by one task at a time, so that a paste of ten is not read at once.
     @State private var queuedFiles: [IncomingFile] = []
     @State private var isKeepingFiles = false
+    /// The file shown full screen by Quick Look: a copy under the temporary directory, named as the note names it.
+    @State private var previewURL: URL?
+    @State private var previewFailed = false
 
     var body: some View {
+        pickersAndAlerts(editor)
+    }
+
+    private var editor: some View {
         MarkdownTextView(
             text: $text, serif: serifBody, focusRequest: focusRequests, requests: requests, isFocused: $isFocused,
-            isNoteColumn: isNoteColumn, header: header, attachment: attachment,
+            isNoteColumn: isNoteColumn, header: header, attachment: attachment, attachmentArrivals: attachmentArrivals,
             canAddPhotos: attachFile != nil, canTakePhoto: attachFile != nil && CameraPicker.isAvailable, canAddFiles: attachFile != nil
         )
         .focusedSceneValue(\.editorRequests, isFocused ? requests : nil)
         .onAppear {
+            requests.open = open
             if attachFile != nil {
                 requests.addPhotos = { isPickingPhotos = true }
                 requests.takePhoto = CameraPicker.isAvailable ? { isTakingPhoto = true } : nil
@@ -56,6 +67,13 @@ struct NoteEditor: View {
             }
         }
         .onChange(of: focusRequest) { focusRequests += 1 }
+    }
+}
+
+extension NoteEditor {
+    /// The pickers, the alerts, and the preview, apart from the body, which the compiler would otherwise check as one expression.
+    fileprivate func pickersAndAlerts(_ content: some View) -> some View {
+        content
         // The photo keeps its own encoding: the app makes the JPEG itself, at the size Settings gives.
         .photosPicker(isPresented: $isPickingPhotos, selection: $pickedPhotos, matching: .images, preferredItemEncoding: .current)
         .onChange(of: pickedPhotos) {
@@ -97,6 +115,28 @@ struct NoteEditor: View {
         }
         .alert("The file could not be added", isPresented: $fileFailed) {
             Button("OK", role: .cancel) {}
+        }
+        .quickLookPreview($previewURL)
+        .alert("The file could not be opened", isPresented: $previewFailed) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    /// Shows the file a line links to full screen. Quick Look reads a file, so the bytes are written out under their own name;
+    /// a file the device does not have yet opens nothing.
+    private func open(_ link: String) {
+        guard let contents = attachment(link) else { return }
+        let folder = FileManager.default.temporaryDirectory.appending(path: "Preview", directoryHint: .isDirectory)
+        let name = NoteEntry.decoded(link)
+        let url = folder.appending(path: String(name[fileNameStart(of: name)...]))
+        do {
+            // One file at a time is shown, so the folder holds only the one shown last.
+            try? FileManager.default.removeItem(at: folder)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try contents.write(to: url)
+            previewURL = url
+        } catch {
+            previewFailed = true
         }
     }
 
@@ -198,6 +238,8 @@ final class EditorRequests {
     var addFiles: (() -> Void)?
     /// Takes the files pasted or dropped into the editor.
     var receive: (([IncomingFile]) -> Void)?
+    /// Shows the file a line links to full screen.
+    var open: ((String) -> Void)?
 
     func request(_ command: EditorCommand) {
         editor?.perform(command)

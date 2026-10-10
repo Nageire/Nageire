@@ -67,6 +67,15 @@ struct MarkdownLine: Equatable {
         }
     }
 
+    /// The address of a line that is one link and nothing else, as the app writes for a file that is not an image. Nil for any other line.
+    func soleLinkAddress(in line: some StringProtocol) -> Substring? {
+        let line = Substring(line)
+        guard kind == .text, line.hasPrefix("["), line.hasSuffix(")") else { return nil }
+        let addresses = spans.filter { $0.role == .linkAddress }
+        guard addresses.count == 1, let address = addresses.first, address.range.upperBound == line.index(before: line.endIndex) else { return nil }
+        return line[address.range]
+    }
+
     private init(kind: Kind, indentation: Range<String.Index>, prefix: Range<String.Index>, box: Range<String.Index>?, spans: [Span] = []) {
         self.kind = kind
         self.indentation = indentation

@@ -164,4 +164,18 @@ struct FileNoteStoreTests {
         #expect(try store.attachmentNames(inFolder: folder) == ["sent.jpg"])
         #expect(try Data(contentsOf: directory.appending(path: "library/\(folder)/sent.jpg")) == Data("s".utf8))
     }
+
+    @Test func theLibrarysFilesAreListedByTheirPathsWithoutItsNotesAndRemovingOneThatIsGoneIsNoError() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let folder = "notes/2026/10/2026-10-03T135812Z-a1b2"
+        try store.saveToLibrary(StoredFile(path: "\(folder).md", contents: Data("note".utf8)))
+        try store.saveToLibrary(StoredFile(path: "\(folder)/a.jpeg", contents: Data("a".utf8)))
+
+        #expect(try store.libraryAttachments() == ["\(folder)/a.jpeg"])
+
+        try store.removeFromLibrary(path: "\(folder)/a.jpeg")
+        try store.removeFromLibrary(path: "\(folder)/a.jpeg")
+
+        #expect(try store.libraryAttachments().isEmpty)
+    }
 }

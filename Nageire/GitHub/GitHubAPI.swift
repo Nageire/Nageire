@@ -51,7 +51,7 @@ protocol GitHubAPI {
     func writeFile(at path: String, in repository: Repository, content: Data, message: String) async throws
     /// Removes the file from the default branch whatever it holds. Succeeds when the repository has no such file.
     func deleteFile(at path: String, in repository: Repository, message: String) async throws
-    /// Every Markdown file under `notes/` on the default branch. Empty for a repository without commits.
+    /// Every file under `notes/` on the default branch: the notes and their files. Empty for a repository without commits.
     func noteFiles(in repository: Repository) async throws -> [RemoteFile]
     func blob(_ sha: String, in repository: Repository) async throws -> Data
 }
@@ -165,7 +165,7 @@ struct GitHubAPIClient: GitHubAPI {
             throw GitHubAPIError.invalidResponse
         }
         return tree.tree
-            .filter { $0.type == "blob" && $0.path.hasSuffix(".md") }
+            .filter { $0.type == "blob" }
             .map { RemoteFile(path: "notes/\($0.path)", sha: $0.sha) }
     }
 
