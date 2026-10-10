@@ -11,6 +11,16 @@
         }
       }
     },
+    "^[%lld item](inflect: true)" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件"
+          }
+        }
+      }
+    },
     "Account" : {
       "localizations" : {
         "ja" : {
@@ -31,6 +41,16 @@
         }
       }
     },
+    "Add or remove repositories on GitHub" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub でリポジトリを追加または削除"
+          }
+        }
+      }
+    },
     "Add Photos" : {
       "localizations" : {
         "ja" : {
@@ -47,16 +67,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "写真を追加…"
-          }
-        }
-      }
-    },
-    "Add or remove repositories on GitHub" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub でリポジトリを追加または削除"
           }
         }
       }
@@ -281,6 +291,9 @@
         }
       }
     },
+    "GitHub" : {
+
+    },
     "GitHub will ask you to authorize Nageire. It can read and write only the repositories you install it on." : {
       "localizations" : {
         "ja" : {
@@ -311,22 +324,22 @@
         }
       }
     },
-    "Install Nageire on a repository" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nageire をリポジトリにインストール"
-          }
-        }
-      }
-    },
     "Install it on the repository for your notes" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "メモを保存するリポジトリにインストールする"
+          }
+        }
+      }
+    },
+    "Install Nageire on a repository" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nageire をリポジトリにインストール"
           }
         }
       }
@@ -401,7 +414,7 @@
         }
       }
     },
-    "New Note" : {
+    "New note" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -411,7 +424,7 @@
         }
       }
     },
-    "New note" : {
+    "New Note" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -837,16 +850,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "昨日 %@"
-          }
-        }
-      }
-    },
-    "^[%lld item](inflect: true)" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 件"
           }
         }
       }
