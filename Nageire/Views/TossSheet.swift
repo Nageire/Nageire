@@ -16,7 +16,12 @@ struct TossSheet: View {
     @State private var saveFailed = false
 
     var body: some View {
-        NoteEditor(text: $draft, focusRequest: focusRequest)
+        // The draft's note is read when a line asks, not when the view is made: the first photo gives the draft its note.
+        NoteEditor(
+            text: $draft, focusRequest: focusRequest,
+            attachment: { link in model.draftEntry.flatMap { model.attachment(of: $0, linked: link) } },
+            attachPhoto: { try await model.attachPhoto($0, named: $1, to: nil) }
+        )
             .background(.paper)
             .navigationTitle("New note")
             .toolbarTitleDisplayMode(.inline)
@@ -41,6 +46,11 @@ struct TossSheet: View {
             }
             .saveFailureAlert(isPresented: $saveFailed)
             .onChange(of: focusRequest) { openedAt = .now }
+            .onChange(of: draft) {
+                if draft.allSatisfy(\.isWhitespace) {
+                    model.discardDraftFiles()
+                }
+            }
     }
 
     private func toss() {

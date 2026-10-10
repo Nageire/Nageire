@@ -15,7 +15,8 @@ final class NoteOutbox {
     private(set) var changes: [NoteChange] = []
     /// The repository paths of the files of notes that GitHub does not have yet.
     private(set) var waitingAttachments: [String] = []
-    var pendingCount: Int { pending.count + changes.count + waitingAttachments.count }
+    /// The draft's files are not among them: no send can move them until the draft is saved.
+    var pendingCount: Int { pending.count + changes.count + waitingAttachments.count { !isDraftFile($0) } }
     /// While true, a note that links a waiting photo waits with its files, and the other notes go past it.
     /// The switch in Settings is on and the device is off Wi-Fi.
     var holdsPhotos = false
@@ -51,8 +52,35 @@ final class NoteOutbox {
         refreshPending()
     }
 
-    func add(body: String) throws {
-        try store.add(Note(body: body, createdAt: now(), timeZone: timeZone(), suffix: suffix()))
+    /// - Parameter fileName: The name given to the draft when its first file was attached, which the note keeps,
+    ///   since its files are in the folder of that name. Nil names the note now.
+    func add(body: String, named fileName: String? = nil) throws {
+        let note = if let fileName, let createdAt = Note.timeOfWriting(inFileName: fileName) {
+            Note(body: body, createdAt: createdAt, timeZone: timeZone(), suffix: Note.suffix(inFileName: fileName))
+        } else {
+            Note(body: body, createdAt: now(), timeZone: timeZone(), suffix: suffix())
+        }
+        try store.add(note)
+        refreshPending()
+    }
+
+    /// The name a note written now gets, for a draft whose first file needs the note's folder before the note exists.
+    func nameNewNote() -> String {
+        Note(body: "", createdAt: now(), timeZone: timeZone(), suffix: suffix()).fileName
+    }
+
+    /// The repository path of the note the draft becomes, once it has a name. Its files wait with the draft rather than being stranded.
+    var draftPath: String?
+
+    private func isDraftFile(_ path: String) -> Bool {
+        draftPath.map { path.hasPrefix($0.dropLast(3) + "/") } ?? false
+    }
+
+    /// Removes the draft's files, for a draft emptied or given up.
+    func discardDraftFiles() throws {
+        for path in try store.waitingAttachments() where isDraftFile(path) {
+            try store.removeWaitingAttachment(path: path)
+        }
         refreshPending()
     }
 
@@ -224,7 +252,7 @@ final class NoteOutbox {
         for path in try store.waitingAttachments() where !attachedBeforeTheirEdit.contains(path) {
             // The note is the folder with `.md`, and a note sent never links a file that did not go before it.
             let note = "\(path[..<fileNameStart(of: path)].dropLast()).md"
-            guard !waitingNotes.contains(note) else { continue }
+            guard !waitingNotes.contains(note), note != draftPath else { continue }
             try store.removeWaitingAttachment(path: path)
             waitingAttachments.removeAll { $0 == path }
         }

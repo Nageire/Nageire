@@ -42,6 +42,20 @@ enum MarkdownEditing {
         }
     }
 
+    /// The lines in place of the selection, each a line of its own, with the caret at the start of the line after them,
+    /// so that what is typed next is not part of an image line.
+    static func insertion(of lines: [String], in text: String, selection: NSRange) -> TextEdit {
+        let text = text as NSString
+        let end = selection.upperBound
+        let opensLine = selection.location == 0 || text.character(at: selection.location - 1) == newline
+        let lineFollows = end < text.length && text.character(at: end) == newline
+        let replacement = (opensLine ? "" : "\n") + lines.joined(separator: "\n") + (lineFollows ? "" : "\n")
+        let caret = selection.location + replacement.utf16.count + (lineFollows ? 1 : 0)
+        return TextEdit(range: selection, replacement: replacement, selection: NSRange(location: caret, length: 0))
+    }
+
+    private static let newline = unichar(UInt8(ascii: "\n"))
+
     /// What Return does with the caret in a list: the next marker on a new line, or on an empty item the end of the
     /// list, which takes the marker away. Nil where Return is a line break: outside a list, inside the marker, or over a selection.
     static func returnEdit(in text: String, selection: NSRange) -> TextEdit? {

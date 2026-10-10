@@ -118,4 +118,29 @@ struct MarkdownEditingTests {
         #expect(returning(in: "- a", at: 1) == nil)
         #expect(returning(in: "- a", at: 2, length: 1) == nil)
     }
+
+    private func inserting(_ lines: [String], in text: String, at location: Int, length: Int = 0) -> (text: String, selection: NSRange)? {
+        applied(MarkdownEditing.insertion(of: lines, in: text, selection: NSRange(location: location, length: length)), to: text)
+    }
+
+    @Test func linesPutInMidLineGoOnLinesOfTheirOwnWithTheCaretOnTheLineAfter() {
+        let result = inserting(["![a.jpeg](f/a.jpeg)", "![b.jpeg](f/b.jpeg)"], in: "庭の金木犀", at: 2)
+
+        #expect(result?.text == "庭の\n![a.jpeg](f/a.jpeg)\n![b.jpeg](f/b.jpeg)\n金木犀")
+        #expect(result?.selection == NSRange(location: 43, length: 0))
+    }
+
+    @Test func aLinePutInAtTheEndLeavesAnEmptyLineForTheCaret() {
+        let result = inserting(["![a.jpeg](f/a.jpeg)"], in: "庭\n", at: 2)
+
+        #expect(result?.text == "庭\n![a.jpeg](f/a.jpeg)\n")
+        #expect(result?.selection == NSRange(location: 22, length: 0))
+    }
+
+    @Test func aLinePutInOnAnEmptyLineTakesThatLineAndTheCaretGoesToTheLineAfter() {
+        let result = inserting(["![a.jpeg](f/a.jpeg)"], in: "庭\n\n花", at: 2)
+
+        #expect(result?.text == "庭\n![a.jpeg](f/a.jpeg)\n花")
+        #expect(result?.selection == NSRange(location: 22, length: 0))
+    }
 }

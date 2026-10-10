@@ -31,6 +31,26 @@
         }
       }
     },
+    "Add Photos" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真を追加"
+          }
+        }
+      }
+    },
+    "Add Photos…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真を追加…"
+          }
+        }
+      }
+    },
     "Add or remove repositories on GitHub" : {
       "localizations" : {
         "ja" : {
@@ -331,6 +351,16 @@
         }
       }
     },
+    "Large" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大"
+          }
+        }
+      }
+    },
     "Last sent" : {
       "localizations" : {
         "ja" : {
@@ -457,6 +487,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub で開く"
+          }
+        }
+      }
+    },
+    "Original" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "元のサイズ"
+          }
+        }
+      }
+    },
+    "Photo size" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真のサイズ"
           }
         }
       }
@@ -591,12 +641,32 @@
         }
       }
     },
+    "Standard" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標準"
+          }
+        }
+      }
+    },
     "Sync" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "同期"
+          }
+        }
+      }
+    },
+    "Take Photo" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真を撮る"
           }
         }
       }
@@ -627,6 +697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "メモを保存できませんでした"
+          }
+        }
+      }
+    },
+    "The photo could not be added" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写真を追加できませんでした"
           }
         }
       }

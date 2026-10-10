@@ -513,4 +513,22 @@ struct NoteOutboxTests {
         #expect(store.attachments.isEmpty)
         #expect(outbox.pendingCount == 0)
     }
+
+    @Test func aDraftNamedForItsFirstFileBecomesTheNoteOfThatNameAndItsFilesWaitForIt() async throws {
+        let outbox = outbox()
+        let name = outbox.nameNewNote()
+        outbox.draftPath = "\(folder).md"
+        try store.addAttachment(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+        clock.now += 60
+
+        await outbox.send()
+
+        #expect(store.attachments.count == 1)
+
+        try outbox.add(body: "![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)", named: name)
+
+        #expect(name == "2026-10-03T135812Z-a1b2.md")
+        #expect(outbox.pending.map(\.contents) == ["---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\n![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)\n"])
+        #expect(outbox.pending.map(\.repositoryPath) == ["\(folder).md"])
+    }
 }

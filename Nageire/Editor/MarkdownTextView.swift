@@ -19,6 +19,10 @@ struct MarkdownTextView {
     var header: AnyView?
     /// The file an image line links to, for its thumbnail. Nil while the device does not have the file.
     var attachment: (String) -> Data? = { _ in nil }
+    /// The accessory bar has the photo library's button, which reaches the library through `requests`.
+    var canAddPhotos = false
+    /// The accessory bar has the camera's button as well.
+    var canTakePhoto = false
 
     func makeCoordinator() -> MarkdownTextCoordinator {
         MarkdownTextCoordinator(text: $text)
@@ -124,6 +128,12 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
         view.apply(edit)
     }
 
+    /// Puts the lines in at the selection, each on a line of its own: the lines that link the files just attached.
+    func insert(_ lines: [String]) {
+        guard !lines.isEmpty, let view, let storage = view.contentStorage?.textStorage else { return }
+        view.apply(MarkdownEditing.insertion(of: lines, in: storage.string, selection: view.selection))
+    }
+
     /// The next marker, or the end of the list, when Return is pressed in a list; false where Return is a line break.
     func handleReturn(at selection: NSRange) -> Bool {
         guard let view, let storage = view.contentStorage?.textStorage,
@@ -213,10 +223,7 @@ extension MarkdownTextView: UIViewRepresentable {
         }
         // The design's bar, 44 on paper-raised with a hairline, is the view's own accessory: the keyboard
         // toolbar of SwiftUI draws its own bar around what is put in it.
-        let bar = UIHostingController(rootView: AccessoryBar(
-            perform: { [weak coordinator] in coordinator?.perform($0) },
-            hideKeyboard: { [weak view] in view?.resignFirstResponder() }
-        ))
+        let bar = UIHostingController(rootView: accessoryBar(for: view, coordinator: coordinator))
         bar.sizingOptions = .intrinsicContentSize
         bar.view.backgroundColor = .clear
         // The keyboard takes an accessory's height from its frame, which a hosted view leaves at zero.
@@ -235,6 +242,10 @@ extension MarkdownTextView: UIViewRepresentable {
 
     func updateUIView(_ view: NoteTextView, context: Context) {
         let coordinator = context.coordinator
+        // The bar is made again only when a button comes or goes, not on each key.
+        if let bar = view.accessoryBar, bar.rootView.canAddPhotos != canAddPhotos || bar.rootView.canTakePhoto != canTakePhoto {
+            bar.rootView = accessoryBar(for: view, coordinator: coordinator)
+        }
         coordinator.text = $text
         coordinator.isFocused = isFocused
         coordinator.thumbnails.attachment = attachment
@@ -253,6 +264,17 @@ extension MarkdownTextView: UIViewRepresentable {
             coordinator.focusRequest = focusRequest
             view.focus()
         }
+    }
+}
+
+extension MarkdownTextView {
+    private func accessoryBar(for view: NoteTextView, coordinator: MarkdownTextCoordinator) -> AccessoryBar {
+        AccessoryBar(
+            perform: { [weak coordinator] in coordinator?.perform($0) },
+            hideKeyboard: { [weak view] in view?.resignFirstResponder() },
+            addPhotos: canAddPhotos ? { [weak requests] in requests?.addPhotos?() } : nil,
+            takePhoto: canTakePhoto ? { [weak requests] in requests?.takePhoto?() } : nil
+        )
     }
 }
 
@@ -283,7 +305,7 @@ extension MarkdownTextCoordinator: UITextViewDelegate {
 final class NoteTextView: UITextView {
     var onTextSizeChange: ((NoteTextView) -> Void)?
     /// The controller of the accessory bar, which its view does not keep alive.
-    var accessoryBar: UIViewController?
+    var accessoryBar: UIHostingController<AccessoryBar>?
     /// The note's header, a subview above the text that scrolls with it; the text starts under it.
     var header: UIHostingController<AnyView>?
     /// Set when the header's content or the width changed; the header is measured again at the next layout.
