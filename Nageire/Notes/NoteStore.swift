@@ -78,10 +78,7 @@ struct FileNoteStore: NoteStore {
     }
 
     func markSent(_ note: Note) throws {
-        let destination = libraryDirectory.appending(path: note.repositoryPath)
-        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: destination)
-        try FileManager.default.moveItem(at: outbox.appending(path: note.fileName), to: destination)
+        try moveIntoLibrary(outbox.appending(path: note.fileName), at: note.repositoryPath)
     }
 
     func replacePending(_ note: Note, with replacement: Note) throws {
@@ -172,6 +169,14 @@ struct FileNoteStore: NoteStore {
         return try paths.filter { $0.hasSuffix(".md") }.sorted().map {
             StoredFile(path: $0, contents: try Data(contentsOf: directory.appending(path: $0)))
         }
+    }
+
+    /// Moves the file to its repository path in the library, over what the library holds there.
+    private func moveIntoLibrary(_ file: URL, at path: String) throws {
+        let destination = libraryDirectory.appending(path: path)
+        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: destination)
+        try FileManager.default.moveItem(at: file, to: destination)
     }
 
     private func write(_ contents: Data, to file: URL) throws {
