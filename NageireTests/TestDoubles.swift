@@ -89,6 +89,9 @@ final class FakeAPI: GitHubAPI {
         let message: String
     }
 
+    /// The paths of every create, write, and delete, in the order they were asked for.
+    private(set) var committedPaths: [String] = []
+
     /// Consumed one per call; once empty, every call succeeds.
     var createFileResults: [Result<Void, Error>] = []
     private(set) var createFileAttempts: [CreatedFile] = []
@@ -117,6 +120,7 @@ final class FakeAPI: GitHubAPI {
 
     func createFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
         createFileAttempts.append(CreatedFile(path: path, repository: repository.fullName, content: String(decoding: content, as: UTF8.self), message: message))
+        committedPaths.append(path)
         await Task.yield()
         if !createFileResults.isEmpty {
             try createFileResults.removeFirst().get()
@@ -141,11 +145,13 @@ final class FakeAPI: GitHubAPI {
     func writeFile(at path: String, in repository: Repository, content: Data, message: String) async throws {
         let content = String(decoding: content, as: UTF8.self)
         writeFileAttempts.append(CreatedFile(path: path, repository: repository.fullName, content: content, message: message))
+        committedPaths.append(path)
         try await change(path, to: content)
     }
 
     func deleteFile(at path: String, in repository: Repository, message: String) async throws {
         deleteFileAttempts.append(DeletedFile(path: path, repository: repository.fullName, message: message))
+        committedPaths.append(path)
         try await change(path, to: nil)
     }
 

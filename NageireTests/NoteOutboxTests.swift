@@ -358,4 +358,127 @@ struct NoteOutboxTests {
         #expect(line == "![IMG-2.jpeg](2026-10-03T135812Z-a1b2/IMG-2.jpeg)")
         #expect(store.attachments["notes/2026/10/2026-10-03T135812Z-a1b2/IMG-2.jpeg"] == Data("second".utf8))
     }
+
+    private let folder = "notes/2026/10/2026-10-03T135812Z-a1b2"
+
+    @Test func aNotesFilesAreCountedAsUnsentAndSentBeforeTheNote() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)")
+        try store.addAttachment(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+        let relaunched = self.outbox()
+
+        #expect(relaunched.pendingCount == 2)
+
+        await relaunched.send()
+
+        #expect(api.committedPaths == ["\(folder)/IMG.jpeg", "\(folder).md"])
+        #expect(api.writeFileAttempts.first?.message == "Add IMG.jpeg")
+        #expect(store.files["\(folder)/IMG.jpeg"] == Data("jpeg".utf8))
+        #expect(relaunched.pendingCount == 0)
+    }
+
+    @Test func aNoteWaitsForAFileGitHubDidNotTake() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)")
+        try store.addAttachment(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+        api.changeResults = [.failure(URLError(.networkConnectionLost))]
+
+        await outbox.send()
+
+        #expect(api.committedPaths == ["\(folder)/IMG.jpeg"])
+        #expect(outbox.pendingCount == 2)
+    }
+
+    @Test func aFileNoLineLinksIsRemovedFromGitHubAndTheDeviceWhenItsNoteIsSent() async throws {
+        let outbox = outbox()
+        let entry = NoteEntry(path: "\(folder).md", contents: "---\ncreated: 2026-10-03T22:58:12+09:00\n---\n\n![sent.jpeg](2026-10-03T135812Z-a1b2/sent.jpeg)\n", isPending: false)
+        try store.saveToLibrary(StoredFile(path: "\(folder)/sent.jpeg", contents: Data("sent".utf8)))
+        try store.addAttachment(StoredFile(path: "\(folder)/waiting.jpeg", contents: Data("waiting".utf8)))
+
+        try outbox.edit(entry, text: "No photo")
+        await outbox.send()
+
+        #expect(api.writeFileAttempts.map(\.path) == ["\(folder).md"])
+        #expect(api.deleteFileAttempts == [.init(path: "\(folder)/sent.jpeg", repository: "octocat/notes", message: "Delete sent.jpeg")])
+        #expect(try store.attachmentNames(inFolder: folder).isEmpty)
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func deletingANoteRemovesItsFilesAfterIt() async throws {
+        let outbox = outbox()
+        let entry = NoteEntry(path: "\(folder).md", contents: "---\n---\n\n![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)\n", isPending: false)
+        try store.saveToLibrary(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+
+        try outbox.delete(entry)
+        await outbox.send()
+
+        #expect(api.deleteFileAttempts.map(\.path) == ["\(folder).md", "\(folder)/IMG.jpeg"])
+        #expect(try store.attachmentNames(inFolder: folder).isEmpty)
+    }
+
+    @Test func aFileAttachedWhileItsLineIsStillBeingTypedSurvivesASendOfItsNote() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let entry = entry(of: outbox.pending[0])
+
+        _ = try outbox.attach(Data("jpeg".utf8), named: "IMG.jpeg", to: entry)
+        await outbox.send()
+
+        #expect(store.attachments.keys.sorted() == ["\(folder)/IMG.jpeg"])
+
+        try outbox.edit(entry, text: "First\n\n![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)")
+        await outbox.send()
+
+        #expect(api.committedPaths == ["\(folder).md", "\(folder)/IMG.jpeg", "\(folder).md"])
+        #expect(outbox.pendingCount == 0)
+    }
+
+    @Test func aFileLinkedByAnEditMadeDuringTheSendOfTheNoteIsKept() async throws {
+        let outbox = outbox()
+        try outbox.add(body: "First")
+        let entry = entry(of: outbox.pending[0])
+        try store.addAttachment(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+
+        async let sending: Void = outbox.send()
+        while api.createFileAttempts.isEmpty {
+            await Task.yield()
+        }
+        try outbox.edit(entry, text: "First\n\n![IMG.jpeg](2026-10-03T135812Z-a1b2/IMG.jpeg)")
+        await sending
+
+        #expect(api.committedPaths == ["\(folder).md", "\(folder)/IMG.jpeg", "\(folder).md"])
+        #expect(api.deleteFileAttempts.isEmpty)
+        #expect(store.files["\(folder)/IMG.jpeg"] == Data("jpeg".utf8))
+    }
+
+    @Test func aFileNamedByAListItemACaptionedImageOrAPlainLinkIsKept() async throws {
+        let outbox = outbox()
+        let entry = NoteEntry(path: "\(folder).md", contents: "---\n---\n\nSent\n", isPending: false)
+        for name in ["item.jpeg", "captioned.jpeg", "scan.pdf"] {
+            try store.saveToLibrary(StoredFile(path: "\(folder)/\(name)", contents: Data(name.utf8)))
+        }
+
+        try outbox.edit(entry, text: """
+            - ![item.jpeg](2026-10-03T135812Z-a1b2/item.jpeg)
+            ![captioned.jpeg](2026-10-03T135812Z-a1b2/captioned.jpeg) at Kamakura
+            [scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf "The scan")
+            """)
+        await outbox.send()
+
+        #expect(api.deleteFileAttempts.isEmpty)
+        #expect(try store.attachmentNames(inFolder: folder).count == 3)
+    }
+
+    @Test func aWaitingFileWhoseLineWasTakenOutBeforeAnEditWasRecordedIsRemovedAfterARelaunch() async throws {
+        try store.addAttachment(StoredFile(path: "\(folder)/IMG.jpeg", contents: Data("jpeg".utf8)))
+        let outbox = outbox()
+
+        #expect(outbox.pendingCount == 1)
+
+        await outbox.send()
+
+        #expect(api.committedPaths.isEmpty)
+        #expect(store.attachments.isEmpty)
+        #expect(outbox.pendingCount == 0)
+    }
 }
