@@ -206,17 +206,23 @@ final class AppModel {
         sendChanges()
     }
 
-    /// Reduces the photo to the size Settings gives, keeps it beside the note, and returns the line that links it.
+    /// Keeps the file beside the note and returns the line that links it. A photo is reduced to the size Settings gives first;
+    /// any other file is kept as it is.
     /// A nil note is the draft, which is given its note's name with its first file.
-    /// Throws `CancellationError` when the draft was saved or emptied while the photo was being reduced: its line has no draft to go into.
-    func attachPhoto(_ contents: Data, named name: String?, to note: NoteEntry?) async throws -> String {
+    /// Throws `CancellationError` when the draft was saved or emptied while the file was being reduced: its line has no draft to go into.
+    func attachFile(_ contents: Data, named name: String?, to note: NoteEntry?) async throws -> String {
         if note == nil, draftNoteName == nil {
             draftNoteName = outbox.nameNewNote()
         }
         let target = note ?? draftEntry
-        let photo = try await Photo.jpeg(from: contents, longSide: photoSize.longSide)
+        let file: (contents: Data, name: String)
+        if let name, !Photo.isReduced(name) {
+            file = (contents, name)
+        } else {
+            file = (try await Photo.jpeg(from: contents, longSide: photoSize.longSide), Photo.fileName(for: name, takenAt: .now))
+        }
         guard let target, note != nil || target == draftEntry else { throw CancellationError() }
-        return try outbox.attach(photo, named: Photo.fileName(for: name, takenAt: .now), to: target)
+        return try outbox.attach(file.contents, named: file.name, to: target)
     }
 
     /// Lets go of the draft's note and its files once the draft is emptied, so that the next note is named when it is written.

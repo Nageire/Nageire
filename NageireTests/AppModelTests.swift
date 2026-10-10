@@ -448,7 +448,7 @@ struct AppModelTests {
 
     @Test func theDraftsFirstPhotoGivesItTheNoteItBecomesWhichSurvivesARelaunch() async throws {
         let model = model()
-        let line = try await model.attachPhoto(pngData(width: 300, height: 200), named: "IMG_0421.HEIC", to: nil)
+        let line = try await model.attachFile(pngData(width: 300, height: 200), named: "IMG_0421.HEIC", to: nil)
         let draft = try #require(model.draftEntry)
 
         #expect(line == "![IMG_0421.jpeg](\(draft.folderName)/IMG_0421.jpeg)")
@@ -472,7 +472,7 @@ struct AppModelTests {
         model.photoSize = .large
         let note = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
 
-        _ = try await model.attachPhoto(pngData(width: 5000, height: 1000), named: "wide.png", to: note)
+        _ = try await model.attachFile(pngData(width: 5000, height: 1000), named: "wide.png", to: note)
 
         let photo = try #require(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/wide.jpeg"))
         #expect(try pixelSize(of: photo).width == 4096)
@@ -481,7 +481,7 @@ struct AppModelTests {
 
     @Test func anEmptiedDraftLetsGoOfTheNoteItWasToBecomeAndItsFiles() async throws {
         let model = model()
-        _ = try await model.attachPhoto(pngData(width: 300, height: 200), named: "IMG.png", to: nil)
+        _ = try await model.attachFile(pngData(width: 300, height: 200), named: "IMG.png", to: nil)
         let draft = try #require(model.draftEntry)
 
         model.discardDraftFiles()
@@ -490,5 +490,19 @@ struct AppModelTests {
         #expect(self.model().draftEntry == nil)
         #expect(model.outbox.draftPath == nil)
         #expect(model.attachment(of: draft, linked: "\(draft.folderName)/IMG.jpeg") == nil)
+    }
+
+    @Test func aFileThatIsNotAPhotoIsKeptAsItIsAndLinked() async throws {
+        let model = model()
+        let note = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+        let gif = pngData(width: 4000, height: 10)
+
+        let pdfLine = try await model.attachFile(Data("%PDF".utf8), named: "scan.pdf", to: note)
+        let gifLine = try await model.attachFile(gif, named: "loop.gif", to: note)
+
+        #expect(pdfLine == "[scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf)")
+        #expect(gifLine == "![loop.gif](2026-10-03T135812Z-a1b2/loop.gif)")
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/scan.pdf") == Data("%PDF".utf8))
+        #expect(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/loop.gif") == gif)
     }
 }

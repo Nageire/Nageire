@@ -1,12 +1,32 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ is %@. It will take a while to send and will make the repository larger." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ は %2$@ あります。送信に時間がかかり、リポジトリも大きくなります。"
+          }
+        }
+      }
+    },
     "%lld attachments" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "添付ファイル %lld 件"
+          }
+        }
+      }
+    },
+    "^[%lld item](inflect: true)" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件"
           }
         }
       }
@@ -21,12 +41,52 @@
         }
       }
     },
+    "Add" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加"
+          }
+        }
+      }
+    },
+    "Add Files" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを追加"
+          }
+        }
+      }
+    },
+    "Add Files…" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを追加…"
+          }
+        }
+      }
+    },
     "Add Link" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "リンクを追加"
+          }
+        }
+      }
+    },
+    "Add or remove repositories on GitHub" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub でリポジトリを追加または削除"
           }
         }
       }
@@ -47,16 +107,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "写真を追加…"
-          }
-        }
-      }
-    },
-    "Add or remove repositories on GitHub" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub でリポジトリを追加または削除"
           }
         }
       }
@@ -271,12 +321,35 @@
         }
       }
     },
+    "File too large" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルが大きすぎます"
+          }
+        }
+      }
+    },
     "Format" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "フォーマット"
+          }
+        }
+      }
+    },
+    "GitHub" : {
+
+    },
+    "GitHub takes files of up to %@. %@ is %@." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub に送れるのは %1$@ までです。%2$@ は %3$@ あります。"
           }
         }
       }
@@ -311,22 +384,22 @@
         }
       }
     },
-    "Install Nageire on a repository" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nageire をリポジトリにインストール"
-          }
-        }
-      }
-    },
     "Install it on the repository for your notes" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "メモを保存するリポジトリにインストールする"
+          }
+        }
+      }
+    },
+    "Install Nageire on a repository" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nageire をリポジトリにインストール"
           }
         }
       }
@@ -357,6 +430,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "大"
+          }
+        }
+      }
+    },
+    "Large file" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大きなファイルです"
           }
         }
       }
@@ -401,7 +484,7 @@
         }
       }
     },
-    "New Note" : {
+    "New note" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -411,7 +494,7 @@
         }
       }
     },
-    "New note" : {
+    "New Note" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -681,6 +764,16 @@
         }
       }
     },
+    "The file could not be added" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルを追加できませんでした"
+          }
+        }
+      }
+    },
     "The note could not be deleted" : {
       "localizations" : {
         "ja" : {
@@ -837,16 +930,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "昨日 %@"
-          }
-        }
-      }
-    },
-    "^[%lld item](inflect: true)" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 件"
           }
         }
       }

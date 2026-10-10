@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The text of a note in a TextKit 2 text view, with its Markdown styled in place.
 ///
@@ -23,6 +24,8 @@ struct MarkdownTextView {
     var canAddPhotos = false
     /// The accessory bar has the camera's button as well.
     var canTakePhoto = false
+    /// The accessory bar has the file picker's button.
+    var canAddFiles = false
 
     func makeCoordinator() -> MarkdownTextCoordinator {
         MarkdownTextCoordinator(text: $text)
@@ -49,6 +52,11 @@ final class MarkdownTextCoordinator: NSObject, NSTextContentStorageDelegate, NST
     let thumbnails = ThumbnailCache()
     /// Where the caret is, for the paragraph being laid out to know whether it holds it.
     weak var view: NoteTextView?
+    /// Where a file pasted or dropped goes: to the screen, which keeps it and puts its line in.
+    weak var requests: EditorRequests?
+    /// The files of a paste or a drop being loaded, in the order they came.
+    fileprivate var incoming: [Task<IncomingFile?, Never>] = []
+    fileprivate var isDeliveringIncoming = false
     /// The start of the paragraph that held the caret when the selection last moved, to restyle when it leaves.
     private var lastCaretParagraphStart: Int?
     /// Whether the view has the keyboard. Without it there is no caret, and no line shows its raw marks.
@@ -211,6 +219,7 @@ extension MarkdownTextView: UIViewRepresentable {
         coordinator.view = view
         coordinator.isFocused = isFocused
         requests?.editor = coordinator
+        coordinator.requests = requests
         coordinator.serif = serif
         coordinator.thumbnails.attachment = attachment
         coordinator.palette = DecorationPalette(accent: view.tintColor)
@@ -230,6 +239,11 @@ extension MarkdownTextView: UIViewRepresentable {
         bar.view.frame.size.height = Spacing.control
         bar.view.autoresizingMask = .flexibleWidth
         view.inputAccessoryView = bar.view
+        // A file pasted or dropped is offered to the paste delegate as well as text.
+        let configuration = view.pasteConfiguration ?? UIPasteConfiguration()
+        configuration.addAcceptableTypeIdentifiers([UTType.item.identifier])
+        view.pasteConfiguration = configuration
+        view.pasteDelegate = coordinator
         view.accessoryBar = bar
         if let header {
             let controller = UIHostingController(rootView: header)
@@ -243,7 +257,8 @@ extension MarkdownTextView: UIViewRepresentable {
     func updateUIView(_ view: NoteTextView, context: Context) {
         let coordinator = context.coordinator
         // The bar is made again only when a button comes or goes, not on each key.
-        if let bar = view.accessoryBar, bar.rootView.canAddPhotos != canAddPhotos || bar.rootView.canTakePhoto != canTakePhoto {
+        if let bar = view.accessoryBar,
+           bar.rootView.canAddPhotos != canAddPhotos || bar.rootView.canTakePhoto != canTakePhoto || bar.rootView.canAddFiles != canAddFiles {
             bar.rootView = accessoryBar(for: view, coordinator: coordinator)
         }
         coordinator.text = $text
@@ -273,8 +288,38 @@ extension MarkdownTextView {
             perform: { [weak coordinator] in coordinator?.perform($0) },
             hideKeyboard: { [weak view] in view?.resignFirstResponder() },
             addPhotos: canAddPhotos ? { [weak requests] in requests?.addPhotos?() } : nil,
-            takePhoto: canTakePhoto ? { [weak requests] in requests?.takePhoto?() } : nil
+            takePhoto: canTakePhoto ? { [weak requests] in requests?.takePhoto?() } : nil,
+            addFiles: canAddFiles ? { [weak requests] in requests?.addFiles?() } : nil
         )
+    }
+}
+
+extension MarkdownTextCoordinator: UITextPasteDelegate {
+    /// A file pasted or dropped goes to the screen to be kept, and its line is put in once it is; text goes in as text.
+    func textPasteConfigurationSupporting(_ supporting: any UITextPasteConfigurationSupporting, transform item: UITextPasteItem) {
+        let provider = item.itemProvider
+        guard let requests, requests.receive != nil, IncomingFile.isFile(provider.registeredContentTypes) else {
+            item.setDefaultResult()
+            return
+        }
+        item.setNoResult()
+        incoming.append(Task { try? await IncomingFile.load(from: provider) })
+        deliverIncoming()
+    }
+
+    /// Hands the files of a paste or a drop to the screen in the order they came, though each is loaded as soon as it is offered.
+    private func deliverIncoming() {
+        guard !isDeliveringIncoming else { return }
+        isDeliveringIncoming = true
+        Task {
+            while !incoming.isEmpty {
+                let next = incoming.removeFirst()
+                if let file = await next.value {
+                    requests?.receive?([file])
+                }
+            }
+            isDeliveringIncoming = false
+        }
     }
 }
 
@@ -420,6 +465,7 @@ extension MarkdownTextView: NSViewRepresentable {
         coordinator.view = view
         coordinator.isFocused = isFocused
         requests?.editor = coordinator
+        coordinator.requests = requests
         coordinator.serif = serif
         coordinator.thumbnails.attachment = attachment
         coordinator.palette = DecorationPalette(accent: .controlAccentColor)
@@ -488,6 +534,48 @@ final class NoteTextView: NSTextView {
     var isNoteColumn = false
     /// One name over both platforms' selection, for the coordinator.
     var selection: NSRange { selectedRange() }
+
+    override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        super.readablePasteboardTypes + IncomingFile.pasteboardTypes
+    }
+
+    override var acceptableDragTypes: [NSPasteboard.PasteboardType] {
+        super.acceptableDragTypes + IncomingFile.pasteboardTypes
+    }
+
+    /// The screen's way to keep the files on the pasteboard, and the files. Nil for a pasteboard of text, or where the screen keeps no file.
+    private func receivable(on pasteboard: NSPasteboard) -> (receive: ([IncomingFile]) -> Void, files: [IncomingFile])? {
+        guard let receive = coordinator?.requests?.receive, case let files = IncomingFile.files(on: pasteboard), !files.isEmpty else { return nil }
+        return (receive, files)
+    }
+
+    /// A file copied goes to the screen to be kept, and its line is put in at the caret; text is pasted as text.
+    override func paste(_ sender: Any?) {
+        guard let (receive, files) = receivable(on: .general) else {
+            super.paste(sender)
+            return
+        }
+        receive(files)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        guard coordinator?.requests?.receive != nil, IncomingFile.holdsFiles(sender.draggingPasteboard) else {
+            return super.draggingUpdated(sender)
+        }
+        return .copy
+    }
+
+    /// A file dropped is kept like one pasted, with its line where it was dropped.
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        guard let (receive, files) = receivable(on: sender.draggingPasteboard) else {
+            return super.performDragOperation(sender)
+        }
+        let index = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
+        setSelectedRange(NSRange(location: index, length: 0))
+        window?.makeFirstResponder(self)
+        receive(files)
+        return true
+    }
 
     var contentStorage: NSTextContentStorage? {
         textContentStorage

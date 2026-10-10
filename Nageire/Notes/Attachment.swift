@@ -27,14 +27,43 @@ nonisolated enum Attachment {
         preconditionFailure("The counter has no end.")
     }
 
-    /// The line that links the file from the note, relative to the note's directory, so that GitHub's file view shows the image.
+    /// The line that links the file from the note, relative to the note's directory: an image, so that GitHub's file view
+    /// shows it, or for any other file a link, which GitHub would otherwise draw as a broken image.
     static func line(name: String, folder: some StringProtocol) -> String {
-        "![\(name)](\(folder)/\(name))"
+        "\(isPhoto(name) ? "!" : "")[\(name)](\(folder)/\(name))"
     }
 
-    /// A file the switch for Wi-Fi holds back: an image, by its name's extension.
+    /// Above this the app asks before keeping a file, as ux-redesign.md decides: it is slow to send and makes the repository large.
+    static let largeSize = 25_000_000
+    /// Above this the Contents API refuses the file, so the app does not keep it.
+    static let maximumSize = 100_000_000
+
+    enum SizeCheck: Equatable {
+        case fine
+        case large
+        case tooLarge
+    }
+
+    /// What the app does with a file of the size before keeping it. A photo it reduces is fine at any size.
+    static func check(size: Int, name: String?) -> SizeCheck {
+        if Photo.isReduced(name) || size <= largeSize {
+            .fine
+        } else if size <= maximumSize {
+            .large
+        } else {
+            .tooLarge
+        }
+    }
+
+    /// A file the switch for Wi-Fi holds back, and that is linked as an image: an image, by its name's extension. An SVG is one,
+    /// since GitHub shows it as one, though the editor's thumbnail stays its frame.
     static func isPhoto(_ path: String) -> Bool {
-        UTType(filenameExtension: (path as NSString).pathExtension)?.conforms(to: .image) == true
+        type(of: path)?.conforms(to: .image) == true
+    }
+
+    /// The type of a file, by its name's extension.
+    static func type(of path: String) -> UTType? {
+        UTType(filenameExtension: (path as NSString).pathExtension)
     }
 
     /// Replaced by `_`: the characters a path cannot carry on either platform or on GitHub, the brackets and

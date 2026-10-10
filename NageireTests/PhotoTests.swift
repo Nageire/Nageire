@@ -78,4 +78,13 @@ struct PhotoTests {
         #expect(Photo.fileName(for: "IMG_0421.HEIC", takenAt: takenAt, in: tokyo) == "IMG_0421.jpeg")
         #expect(Photo.fileName(for: nil, takenAt: takenAt, in: tokyo) == "IMG_20261010_163012.jpeg")
     }
+
+    @Test func anImageIsReducedExceptAGIFOrAnSVGAndAFileWithoutANameIsTakenForAPhoto() {
+        #expect(Photo.isReduced("IMG_0421.HEIC"))
+        #expect(Photo.isReduced("screen.png"))
+        #expect(Photo.isReduced(nil))
+        #expect(!Photo.isReduced("loop.gif"))
+        #expect(!Photo.isReduced("logo.svg"))
+        #expect(!Photo.isReduced("scan.pdf"))
+    }
 }

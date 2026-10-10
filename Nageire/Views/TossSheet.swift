@@ -20,7 +20,7 @@ struct TossSheet: View {
         NoteEditor(
             text: $draft, focusRequest: focusRequest,
             attachment: { link in model.draftEntry.flatMap { model.attachment(of: $0, linked: link) } },
-            attachPhoto: { try await model.attachPhoto($0, named: $1, to: nil) }
+            attachFile: { try await model.attachFile($0, named: $1, to: nil) }
         )
             .background(.paper)
             .navigationTitle("New note")

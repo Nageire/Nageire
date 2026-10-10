@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// The bar above the keyboard on iOS: the attachments, the marks of the Markdown, then the key that lowers the keyboard.
-/// The design's file button arrives with the file picker.
 struct AccessoryBar: View {
     let perform: (EditorCommand) -> Void
     let hideKeyboard: () -> Void
@@ -10,15 +9,24 @@ struct AccessoryBar: View {
     /// Nil where there is no camera or the editor adds no photo.
     var takePhoto: (() -> Void)?
 
+    /// Nil where the editor adds no file.
+    var addFiles: (() -> Void)?
+
     var canAddPhotos: Bool { addPhotos != nil }
+    var canAddFiles: Bool { addFiles != nil }
     var canTakePhoto: Bool { takePhoto != nil }
 
     var body: some View {
         HStack(spacing: 0) {
-            if let addPhotos {
-                key("Add Photos", systemImage: "photo", action: addPhotos)
+            if canAddPhotos || canAddFiles {
+                if let addPhotos {
+                    key("Add Photos", systemImage: "photo", action: addPhotos)
+                }
                 if let takePhoto {
                     key("Take Photo", systemImage: "camera", action: takePhoto)
+                }
+                if let addFiles {
+                    key("Add Files", systemImage: "doc", action: addFiles)
                 }
                 Hairline(axis: .vertical)
                     .frame(height: 22)
@@ -49,7 +57,7 @@ struct AccessoryBar: View {
 }
 
 #Preview {
-    AccessoryBar(perform: { _ in }, hideKeyboard: {}, addPhotos: {}, takePhoto: {})
+    AccessoryBar(perform: { _ in }, hideKeyboard: {}, addPhotos: {}, takePhoto: {}, addFiles: {})
         .frame(maxHeight: .infinity, alignment: .bottom)
         .background(.paper)
 }

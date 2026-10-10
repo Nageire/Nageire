@@ -187,4 +187,12 @@ struct NoteEntryTitleTests {
         #expect(entry.attachmentPath(linked: "../../secret.jpg") == nil)
         #expect(entry.attachmentPath(linked: "..%2F..%2Fsecret.jpg") == nil)
     }
+
+    @Test func aLineThatLinksAFileInTheNotesFolderCountsAsAnAttachmentAndALinkToAnotherNoteDoesNot() {
+        let note = entry("[scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf)\n\n[昨日のメモ](2026-10-02T090000Z-07de.md)\n")
+
+        #expect(note.displayTitle == "昨日のメモ")
+        #expect(note.attachmentCount == 1)
+        #expect(entry(" [scan.pdf](2026-10-03T135812Z-a1b2/scan.pdf)\n").displayTitle == "scan.pdf")
+    }
 }
