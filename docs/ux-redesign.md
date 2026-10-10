@@ -48,6 +48,8 @@ The folder sits beside the note rather than under a top-level `attachments/` bec
 - The outbox sends a note's files before the note, so the note on GitHub never names a file that is not there yet. A file still waiting is counted among the unsent.
 - A refresh lists the files of other devices but fetches one only when its note is opened, and keeps it afterwards. Thumbnails are made on the device.
 - A file comes in from the accessory bar (library, camera, files), from paste, from drag and drop on iPad and macOS, and from the share extension.
+- A new note has no folder until it is saved, so the draft's first file gives it the name of the note it becomes, kept with the draft, and the note is dated by that file rather than by the save. Moving the files and rewriting their links at the save was the alternative, for a date that differs by the time the draft stayed open. A draft emptied lets go of its name and its files, and its files are not counted among the unsent, since no send can move them until it is saved.
+- A photo loses the place it was taken before it is kept, since the repository may be public; the time and the camera stay. "The original" in the setting is the photo's own pixels as JPEG, since GitHub's file view does not show HEIC.
 - A switch in Settings sends photos only on Wi-Fi. It is off by default.
 - Git LFS is not reachable through the Contents API and is not used. Video is a file like any other, with no preview beyond the system's.
 
