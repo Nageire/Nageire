@@ -445,4 +445,50 @@ struct AppModelTests {
 
         #expect(!model.outbox.holdsPhotos)
     }
+
+    @Test func theDraftsFirstPhotoGivesItTheNoteItBecomesWhichSurvivesARelaunch() async throws {
+        let model = model()
+        let line = try await model.attachPhoto(pngData(width: 300, height: 200), named: "IMG_0421.HEIC", to: nil)
+        let draft = try #require(model.draftEntry)
+
+        #expect(line == "![IMG_0421.jpeg](\(draft.folderName)/IMG_0421.jpeg)")
+        #expect(model.outbox.pendingCount == 0)
+        let relaunched = self.model()
+        try relaunched.completeSignIn(with: .sample)
+        relaunched.select(Repository(owner: "octocat", name: "notes"))
+        await relaunched.outbox.send()
+        #expect(relaunched.draftEntry == draft)
+        #expect(relaunched.attachment(of: draft, linked: "\(draft.folderName)/IMG_0421.jpeg") != nil)
+
+        try model.saveNote(body: "庭\n\n" + line)
+
+        #expect(model.outbox.pending.map(\.repositoryPath) == [draft.path])
+        #expect(model.draftEntry == nil)
+        #expect(model.attachment(of: draft, linked: "\(draft.folderName)/IMG_0421.jpeg") != nil)
+    }
+
+    @Test func aPhotoIsKeptAtTheSizeSettingsGives() async throws {
+        let model = model()
+        model.photoSize = .large
+        let note = NoteEntry(path: "notes/2026/10/2026-10-03T135812Z-a1b2.md", contents: "a\n", isPending: false)
+
+        _ = try await model.attachPhoto(pngData(width: 5000, height: 1000), named: "wide.png", to: note)
+
+        let photo = try #require(model.attachment(of: note, linked: "2026-10-03T135812Z-a1b2/wide.jpeg"))
+        #expect(try pixelSize(of: photo).width == 4096)
+        #expect(self.model().photoSize == .large)
+    }
+
+    @Test func anEmptiedDraftLetsGoOfTheNoteItWasToBecomeAndItsFiles() async throws {
+        let model = model()
+        _ = try await model.attachPhoto(pngData(width: 300, height: 200), named: "IMG.png", to: nil)
+        let draft = try #require(model.draftEntry)
+
+        model.discardDraftFiles()
+
+        #expect(model.draftEntry == nil)
+        #expect(self.model().draftEntry == nil)
+        #expect(model.outbox.draftPath == nil)
+        #expect(model.attachment(of: draft, linked: "\(draft.folderName)/IMG.jpeg") == nil)
+    }
 }

@@ -65,6 +65,11 @@ struct SettingsView: View {
                         }
                     }
                     Toggle("Send photos on Wi-Fi only", isOn: $model.sendsPhotosOnWiFiOnly)
+                    Picker("Photo size", selection: $model.photoSize) {
+                        Text("Standard").tag(PhotoSize.standard)
+                        Text("Large").tag(PhotoSize.large)
+                        Text("Original").tag(PhotoSize.original)
+                    }
                 }
             }
             // The macOS settings window can be opened from the sign-in screen, where only the look applies.

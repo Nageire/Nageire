@@ -17,6 +17,13 @@ func pngData(width: Int, height: Int) -> Data {
     return data as Data
 }
 
+/// The width and height of an image file, as its properties give them.
+func pixelSize(of contents: Data) throws -> (width: Int, height: Int) {
+    let source = try #require(CGImageSourceCreateWithData(contents as CFData, nil))
+    let properties = try #require(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+    return (try #require(properties[kCGImagePropertyPixelWidth] as? Int), try #require(properties[kCGImagePropertyPixelHeight] as? Int))
+}
+
 @MainActor
 final class StubTransport: HTTPTransport {
     private(set) var requests: [URLRequest] = []

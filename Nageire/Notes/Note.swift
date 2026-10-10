@@ -50,8 +50,12 @@ extension Note {
         try? Date(String(fileName.prefix(18)), strategy: stampStyle)
     }
 
+    /// The four characters between the last hyphen and `.md`.
+    static func suffix(inFileName fileName: some StringProtocol) -> String {
+        String(fileName.dropLast(3).suffix(4))
+    }
+
     func renamed(suffix: String) -> Note {
-        // The suffix is the four characters between the last hyphen and ".md".
         Note(fileName: "\(fileName.dropLast(7))\(suffix).md", contents: contents)
     }
 

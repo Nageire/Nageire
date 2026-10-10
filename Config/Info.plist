@@ -6,5 +6,7 @@
 	<string>$(GITHUB_APP_CLIENT_ID)</string>
 	<key>GitHubAppSlug</key>
 	<string>$(GITHUB_APP_SLUG)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera takes a photo for the note you are writing.</string>
 </dict>
 </plist>

@@ -1,13 +1,28 @@
 import SwiftUI
 
-/// The bar above the keyboard on iOS: the marks of the Markdown, then the key that lowers the keyboard.
-/// The design's attachment buttons, photo, camera, and file, arrive with phase 3.
+/// The bar above the keyboard on iOS: the attachments, the marks of the Markdown, then the key that lowers the keyboard.
+/// The design's file button arrives with the file picker.
 struct AccessoryBar: View {
     let perform: (EditorCommand) -> Void
     let hideKeyboard: () -> Void
+    /// Nil where the editor adds no photo, and the button is absent.
+    var addPhotos: (() -> Void)?
+    /// Nil where there is no camera or the editor adds no photo.
+    var takePhoto: (() -> Void)?
+
+    var canAddPhotos: Bool { addPhotos != nil }
+    var canTakePhoto: Bool { takePhoto != nil }
 
     var body: some View {
         HStack(spacing: 0) {
+            if let addPhotos {
+                key("Add Photos", systemImage: "photo", action: addPhotos)
+                if let takePhoto {
+                    key("Take Photo", systemImage: "camera", action: takePhoto)
+                }
+                Hairline(axis: .vertical)
+                    .frame(height: 22)
+            }
             key("Heading", systemImage: "number") { perform(.heading) }
             key("List", systemImage: "list.bullet") { perform(.list) }
             key("Checklist", systemImage: "checklist") { perform(.checklist) }
@@ -34,7 +49,7 @@ struct AccessoryBar: View {
 }
 
 #Preview {
-    AccessoryBar(perform: { _ in }, hideKeyboard: {})
+    AccessoryBar(perform: { _ in }, hideKeyboard: {}, addPhotos: {}, takePhoto: {})
         .frame(maxHeight: .infinity, alignment: .bottom)
         .background(.paper)
 }

@@ -43,6 +43,21 @@ final class AppModel {
             updatePhotoHold()
         }
     }
+    /// How large a photo is kept and sent.
+    var photoSize: PhotoSize {
+        didSet { defaults.set(photoSize.rawValue, forKey: Keys.photoSize) }
+    }
+    /// The name of the note the draft becomes, given when its first file is attached, so that the file has the note's folder.
+    private(set) var draftNoteName: String? {
+        didSet {
+            defaults.set(draftNoteName, forKey: Keys.draftNoteName)
+            outbox.draftPath = draftEntry?.path
+        }
+    }
+    /// The note the draft becomes, for its files. Nil until a file is attached to the draft.
+    var draftEntry: NoteEntry? {
+        draftNoteName.map { NoteEntry(path: Note(fileName: $0, contents: "").repositoryPath, contents: "", isPending: true) }
+    }
     /// The device is on a network that costs by the byte: cellular, or a phone's hotspot. Nil until the network is first known,
     /// which holds the photos as a metered network does, so that a send at launch does not beat the first answer.
     var isOnMeteredNetwork: Bool? {
@@ -90,6 +105,9 @@ final class AppModel {
         isSignedIn = session.hasTokens
         lastSentAt = defaults.object(forKey: Keys.lastSentAt) as? Date
         sendsPhotosOnWiFiOnly = defaults.bool(forKey: Keys.sendsPhotosOnWiFiOnly)
+        photoSize = defaults.string(forKey: Keys.photoSize).flatMap(PhotoSize.init) ?? .standard
+        draftNoteName = defaults.string(forKey: Keys.draftNoteName)
+        outbox.draftPath = draftEntry?.path
         if isSignedIn {
             accountLogin = defaults.string(forKey: Keys.accountLogin)
             if let fullName = defaults.string(forKey: Keys.repository) {
@@ -183,8 +201,29 @@ final class AppModel {
 
     /// Saves the note on the device and starts sending it. Returns once it is saved; sending never holds up writing.
     func saveNote(body: String) throws {
-        try outbox.add(body: body)
+        try outbox.add(body: body, named: draftNoteName)
+        draftNoteName = nil
         sendChanges()
+    }
+
+    /// Reduces the photo to the size Settings gives, keeps it beside the note, and returns the line that links it.
+    /// A nil note is the draft, which is given its note's name with its first file.
+    /// Throws `CancellationError` when the draft was saved or emptied while the photo was being reduced: its line has no draft to go into.
+    func attachPhoto(_ contents: Data, named name: String?, to note: NoteEntry?) async throws -> String {
+        if note == nil, draftNoteName == nil {
+            draftNoteName = outbox.nameNewNote()
+        }
+        let target = note ?? draftEntry
+        let photo = try await Photo.jpeg(from: contents, longSide: photoSize.longSide)
+        guard let target, note != nil || target == draftEntry else { throw CancellationError() }
+        return try outbox.attach(photo, named: Photo.fileName(for: name, takenAt: .now), to: target)
+    }
+
+    /// Lets go of the draft's note and its files once the draft is emptied, so that the next note is named when it is written.
+    func discardDraftFiles() {
+        guard draftNoteName != nil else { return }
+        try? outbox.discardDraftFiles()
+        draftNoteName = nil
     }
 
     /// Changes the note. The text goes to the device as soon as the typing pauses, and GitHub gets one commit
@@ -345,6 +384,9 @@ final class AppModel {
         /// The note body in the serif. The rest of the app stays in the sans.
         static let serifBody = "serifBody"
         static let sendsPhotosOnWiFiOnly = "sendsPhotosOnWiFiOnly"
+        static let photoSize = "photoSize"
+        /// The name of the note the draft becomes, kept with the draft.
+        static let draftNoteName = "draftNoteName"
     }
 }
 

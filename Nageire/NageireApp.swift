@@ -68,6 +68,10 @@ struct NoteCommands: Commands {
                 .disabled(newNoteRequests == nil)
         }
         CommandMenu("Format") {
+            Button("Add Photos…") { editorRequests?.addPhotos?() }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .disabled(editorRequests?.addPhotos == nil)
+            Divider()
             Group {
                 Button("Bold") { editorRequests?.request(.bold) }
                     .keyboardShortcut("b", modifiers: .command)
